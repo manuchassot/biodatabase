@@ -1,0 +1,155 @@
+---
+title: 'SEYFISH dataset of lipid classes, fatty acids, and proteins'
+author: 'Seychelles Fishing Authority'
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+  
+```{r setup, include=FALSE,echo=FALSE}
+library(knitr)
+library(maps)
+library(mapdata)
+library(RPostgreSQL)
+library(rgdal)
+library(scales)
+library(lubridate)
+library(plyr)
+library(openxlsx)
+
+### knitr options
+knitr::opts_chunk$set(echo=FALSE,tidy.opts=list(width.cutoff=90),tidy=TRUE,size='small')
+opar <- par(no.readonly = TRUE)
+
+### Connect to the database
+con_emotion <- dbConnect(dbDriver("PostgreSQL"), user="postgres",dbname="emotion3", host="localhost")
+```
+
+```{r read_shapefiles,echo=FALSE,warning=FALSE,results='hide',cache=TRUE}
+### World borders (lower resolution)
+rep.world <- '/media/stagiaire/Seagate Expansion Drive/manu-boulot/data/shape_files/world_borders/world_borders/'
+world <- readOGR(dsn=rep.world,layer="world_borders",verbose=TRUE)
+rep.eez <- '/media/stagiaire/Seagate Expansion Drive/manu-boulot/data/shape_files/EEZ/VLIZ/V10/'
+eez <- readOGR(dsn=rep.eez,layer="eez_v10",verbose=TRUE)
+eez_sey <- eez[eez@data$Territory1=="Seychelles",]
+
+### Mahé Plateau
+rep.mahe.plateau <- '/media/stagiaire/Seagate Expansion Drive/manu-boulot/data/shape_files/Seychelles/Mahe_plateau/'
+plateau <- readOGR(dsn=rep.mahe.plateau,layer='Mahe_Plateau',verbose = T)
+plateau <- sp::spTransform(plateau,CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+```
+
+```{sql connection=con_emotion,include=TRUE,cache=FALSE,echo=FALSE,eval=TRUE,output.var="table_info_fixed"}
+SELECT * FROM extractions.seyfish_eez_dataset_samples_description;
+```
+
+```{sql connection=con_emotion,include=TRUE,cache=FALSE,echo=FALSE,eval=TRUE,output.var="tracers"}
+SELECT * FROM extractions.seyfish_eez_dataset_lc_fa_prot_analyses;
+```
+
+```{r data_pivot,echo=FALSE,results='hide',warning=FALSE,eval=TRUE}
+table_values <- reshape(tracers[,c('fish_identifier','tissue','sample_position','measure_name','measure_value_avg')],direction = 'wide', idvar= c('fish_identifier','tissue','sample_position'),timevar = 'measure_name',sep="-")
+
+### Merge the INFO and VALUE data sets
+table_seyfish <- merge(table_info_fixed,table_values,by.x=c('fish_identifier','sample_position','tissue'),by.y=c('fish_identifier','sample_position','tissue'), all.x = TRUE)
+
+### Rename the columns
+indic_avg <- grep('measure_value_avg-',names(table_seyfish))
+names(table_seyfish)[indic_avg] <- gsub('measure_value_avg-','',names(table_seyfish)[indic_avg])
+names(table_seyfish)[indic_avg] <- paste(names(table_seyfish)[indic_avg],'avg',sep='_')
+
+### Remove columns with only NA
+indic.nacolumn <- apply(is.na(table_seyfish),2,sum) == nrow(table_seyfish)
+#names(table_seyfish)[indic.nacolumn]
+table_seyfish <- table_seyfish[,!indic.nacolumn]
+
+### Add flag for each tracer type
+table_seyfish$TLC <- ifelse(!is.na(table_seyfish$totallipidclasses_concentration_avg),'T','F')
+table_seyfish$PROT <- ifelse(!is.na(table_seyfish$protein_concentration_avg),'T','F')
+table_seyfish$FATL <- ifelse(!is.na(table_seyfish$c22_6w3_p_tl_avg),'T','F')
+table_seyfish$FANL <- ifelse(!is.na(table_seyfish$c22_6w3_p_nl_avg),'T','F')
+table_seyfish$FAPL <- ifelse(!is.na(table_seyfish$c22_6w3_p_pl_avg),'T','F')
+
+### Spatialise the data set
+table_seyfish_sp <- SpatialPointsDataFrame(coords = table_seyfish[,c('long_centroid','lat_centroid')],data = table_seyfish)
+proj4string(table_seyfish_sp) <- proj4string(plateau)
+indic.plateau = over(table_seyfish_sp,plateau)[,'gid']
+table_seyfish$MahePlateau <- ifelse(is.na(indic.plateau),'F','T') 
+
+### openxlsx
+options(xlsx.date.format = "yyyy-mm-dd")
+write.xlsx(table_seyfish, file = paste("table_seyfish_dataset_lc_fa_prot_",Sys.Date(),".xlsx",sep=""),colNames = TRUE, borders = "surrounding")
+```
+
+```{r define_fish_datafile,echo=FALSE,eval=TRUE}
+table_info_fixed$year <- lubridate::year(as.Date(table_info_fixed$date))
+
+### Datafile of all fish sampled
+seyfish_fish <- unique(table_info_fixed[,c('c_ocean','order','family','fish_identifier','fish_identifier_origin','gear_code','l_gear_fao_uk','vessel_code','vessel_name','avg_fishing_date','avg_landing_date','date','year','landing_site','long_centroid','lat_centroid','vessel_storage_mode','remarks_fishing','l_operator','c_sp_fao','english_name','scientific_name','seychelles_creole_name','project','sex','macro_maturity_stage','individual_length_unit','total_length','fork_length','lowerjawfork_length','carapace_length','individual_weight_unit','whole_fishweight','gutted_fishweight','gilledgutted_fishweight','tissue_weight_unit','gonads_total_weight','liver_weight','rest_viscera_weight','full_stomach_weight','empty_stomach_weight','remarks_sampling')])
+
+### Select fish with some analysis
+seyfish_analyzed <- table_seyfish[apply(table_seyfish[,52:78],1,function(x) sum(!is.na(x)))>0,]
+seyfish_analyzed$year <- lubridate::year(as.Date(seyfish_analyzed$date))
+
+### Datafile of fish sampled with subsequent analysis
+seyfish_analyzed_fish <- unique(seyfish_analyzed[,c('fish_identifier','fish_identifier_origin','gear_code','l_gear_fao_uk','vessel_code','vessel_name','avg_fishing_date','avg_landing_date','year','landing_site','long_centroid','lat_centroid','vessel_storage_mode','remarks_fishing','l_operator','c_sp_fao','english_name','scientific_name','seychelles_creole_name','project','sex','macro_maturity_stage','individual_length_unit','total_length','fork_length','lowerjawfork_length','carapace_length','individual_weight_unit','whole_fishweight','gutted_fishweight','gilledgutted_fishweight','tissue_weight_unit','gonads_total_weight','liver_weight','rest_viscera_weight','full_stomach_weight','empty_stomach_weight','remarks_sampling')])
+```
+
+## Sampling coverage
+
+```{r table_fish_ocean_gear, warning=FALSE,message=FALSE,echo=FALSE,eval=TRUE,results='asis'}
+nfish_ocean_gear <- ddply(seyfish_fish,c('c_ocean','gear_code','l_gear_fao_uk'),summarise,nfish=length(unique(fish_identifier)))
+kable(nfish_ocean_gear,row.names = FALSE, caption = 'Number of fish sampled by fishing gear.')
+```
+
+```{r table_fish_size_measurements, warning=FALSE,message=FALSE,echo=FALSE,eval=TRUE}
+table_fish_size_measurements <- ddply(seyfish_fish, c('order','family','c_sp_fao','scientific_name','english_name'),summarize, ntotal_length = sum(!is.na(total_length)), nfork_length = sum(!is.na(fork_length)), nlowerjawfork_length = sum(!is.na(lowerjawfork_length)),ncarapace_length = sum(!is.na(carapace_length)), nwhole_fishweight = sum(!is.na(whole_fishweight)), ngutted_fishweight = sum(!is.na(gutted_fishweight)), ngilledgutted_fishweight = sum(!is.na(gilledgutted_fishweight)))
+kable(table_fish_size_measurements,row.names = FALSE, caption = 'Number of fish per type of morphometric measurement')
+```
+
+```{r nfish_year_species_analyzed_wm,echo = FALSE, results = 'asis',eval=FALSE}
+nfish_year_species_analyzed <- ddply(seyfish_analyzed,c('year','c_sp_fao','english_name','seychelles_creole_name','scientific_name'),summarize,nfish=length(unique(fish_identifier)))
+kable(nfish_year_species_analyzed,caption = 'Fish sampled within the Seychelles EEZ with some analysis of lipid classes, fatt acids or proteins.',row.names = FALSE)
+```
+
+```{r table_fish_ocean_size, warning=FALSE,message=FALSE,echo=FALSE,eval=TRUE}
+### Add size adapted to species
+seyfish_fish$size <- ifelse(!is.na(seyfish_fish$fork_length),seyfish_fish$fork_length,ifelse(!is.na(seyfish_fish$lowerjawfork_length),seyfish_fish$lowerjawfork_length,ifelse(!is.na(seyfish_fish$carapace_length),seyfish_fish$carapace_length,ifelse(!is.na(seyfish_fish$total_length),seyfish_fish$total_length,seyfish_fish$whole_fishweight))))
+  
+table_fish_ocean_size <- ddply(seyfish_fish,c('c_ocean','order','family','c_sp_fao','scientific_name','english_name'),summarise,nfish=length(unique(fish_identifier)),size_range=ifelse(sum(is.na(size)==0),paste(min(size,na.rm=T),max(size,na.rm=T),sep='-'),NA))
+
+kable(table_fish_ocean_size, row.names = FALSE,caption = 'Number and size range of fish sampled by ocean and species. Lower jaw fork length for billfish, total length for sharks, fork length for other fish species, and total weight for cephalopods.')
+```
+
+## Sampling location
+
+```{r plot_fish_centroids,warning=FALSE,message=FALSE,echo=FALSE,fig.width=8,fig.height=6,fig.show='asis',fig.align='center',fig.cap='Spatial distribution of fish sampled for subsequent analysis of the white muscle and liver.'}
+plot(world,add=F,col="black",xlim=c(40,65),ylim=c(-15,0),cex.axis=1.3, cex.lab=1.5,xlab="Longitude (°)", ylab="Latitude (°)")
+### Grid
+abline(v=seq(0,140,20),lty=2,col="darkgrey")
+abline(h=seq(-60,20,20),lty=2,col="darkgrey")
+### Axes
+axis(1,at=seq(0,140,20),labels=paste(seq(0,140,20),"°E",sep=""),tick=T,cex.axis=1.3,cex.lab=1.3)
+axis(2,at=seq(-80,40,20),tick=T,las=1,labels=c(NA,NA,"40°S","20°S","0","20°N",NA))
+axis(3,at=seq(0,140,20),labels=F,tick=T)
+axis(4,at=seq(-80,40,20),labels=F)
+### Add Seychelles EEZ
+plot(eez_sey,add=T)
+
+### Add the fish location
+points(seyfish_analyzed$long_centroid,seyfish_analyzed$lat_centroid,pch=21,col=alpha("red",0.1),cex=.5)
+```
+
+# Samples
+
+## Analysis type by species
+
+```{r nsamples_species,echo=FALSE,results='asis',warning=FALSE}
+nsamples_species <- ddply(table_seyfish,c('order','family','c_sp_fao','scientific_name','english_name'),summarize,nfish=length(unique(fish_identifier)), "TLC-L"=sum(!is.na(triacylglycerols_concentration_avg) & tissue == 'Liver'),"TLC-WM"=sum(!is.na(triacylglycerols_concentration_avg) & tissue == 'White muscle'),"PROT-L"=sum(!is.na(protein_concentration_avg) & tissue == 'Liver'),"PROT-WM"=sum(!is.na(protein_concentration_avg) & tissue == 'White muscle'), "FATL-L"=sum(!is.na(c22_6w3_p_tl_avg) & tissue == 'Liver'),"FATL-WM"=sum(!is.na(c22_6w3_p_tl_avg) & tissue == 'White muscle'))
+kable(nsamples_species,caption = '',row.names = FALSE)
+```
+
+## Sample position
+
+```{r nsamples_position,echo=FALSE,results='asis',warning=FALSE}
+nsamples_position <- ddply(tracers,c('tissue','sample_position'),summarise, nfish=length(unique(fish_identifier)), ndata = sum(!is.na(measure_name)), TLC =  sum(measure_name=='triacylglycerols_concentration'), PROT = sum(measure_name=='protein_concentration'), FATL=sum(measure_name=='c22_6w3_p_tl'))
+kable(nsamples_position,caption = 'Number of samples by tissue and position',row.names = FALSE)
+```

@@ -1,0 +1,189 @@
+---
+title: 'SEYFISH dataset of stable isotopes and metallic contaminants'
+author: 'Seychelles Fishing Authority'
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+  
+```{r setup, include=FALSE,echo=FALSE}
+library(knitr,quietly = T)
+library(maps, quietly = T)
+library(mapdata, quietly = T)
+library(RPostgreSQL, quietly = T)
+library(rgdal, quietly = T)
+library(scales, quietly = T)
+library(lubridate, quietly = T)
+library(plyr, quietly = T)
+library(openxlsx, quietly = T)
+library(data.table,quietly = T)
+
+### knitr options
+knitr::opts_chunk$set(echo=FALSE,tidy.opts=list(width.cutoff=90),tidy=TRUE,size='small')
+opar <- par(no.readonly = TRUE)
+
+### Connect to the database
+con_emotion <- dbConnect(dbDriver("PostgreSQL"), user="postgres",dbname="emotion3", host="localhost")
+```
+
+```{r read_shapefiles,echo=FALSE,warning=FALSE,results='hide',cache=TRUE}
+### World borders (lower resolution)
+rep.world <- '/home/stagiaire/Emotion3/data/shapefiles/world_borders/world_borders/'
+world <- readOGR(dsn=rep.world,layer="world_borders",verbose=TRUE)
+rep.eez <- '/home/stagiaire/Emotion3/data/shapefiles/EEZ_VLIZ_V10/'
+eez <- readOGR(dsn=rep.eez,layer="eez_v10",verbose=TRUE)
+eez_sey <- eez[eez@data$Territory1=="Seychelles",]
+
+### Mahé Plateau
+rep.mahe.plateau <- '/home/stagiaire/Emotion3/data/shapefiles/Mahe_plateau/'
+plateau <- readOGR(dsn=rep.mahe.plateau,layer='Mahe_Plateau',verbose = T)
+plateau <- sp::spTransform(plateau,CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+```
+
+```{sql, connection=con_emotion,include=TRUE,cache=FALSE,echo=FALSE,eval=TRUE,output.var="table_info_fixed"}
+SELECT * FROM extractions.seyfish_eez_dataset_samples_description;
+```
+
+```{sql,connection=con_emotion,include=TRUE,cache=FALSE,echo=FALSE,eval=TRUE,output.var="tracers"}
+SELECT * FROM extractions.seyfish_eez_dataset_si_metals_analyses;
+```
+
+```{r pivot_tracers,echo=FALSE,results='hide',warning=FALSE,eval=TRUE}
+table_values <- dcast.data.table(as.data.table(na.omit(tracers)),fish_identifier+tissue+sample_position~measure_name,value.var = 'measure_value_avg')
+
+### ADD "_avg" for all tracers
+names(table_values)[which(!(names(table_values) %in% c('fish_identifier','tissue','sample_position')))] <- paste(names(table_values)[which(!(names(table_values) %in% c('fish_identifier','tissue','sample_position')))],'avg',sep='_')
+
+### Remove measure 'fat_content_avg'
+table_values[, fat_content_avg := NULL]
+
+### Rename 'fat_content_lf_avg' into "dry_extract_fat_avg"
+names(table_values)[which(names(table_values)=='fat_content_lf_avg')] <- 'dry_extract_fat_avg'
+
+#table_values <- reshape(na.omit(tracers)[,c('fish_identifier','tissue','sample_position','measure_name','measure_value_avg')],direction = 'wide', idvar= c('fish_identifier','tissue','sample_position'),timevar = 'measure_name',sep="-")
+
+### Merge the INFO and VALUE data sets
+table_seyfish <- merge(table_info_fixed,table_values,by.x=c('fish_identifier','sample_position','tissue'),by.y=c('fish_identifier','sample_position','tissue'), all.x = TRUE)
+
+### Rename the columns
+# indic_avg <- grep('measure_value_avg-',names(table_seyfish))
+# names(table_seyfish)[indic_avg] <- gsub('measure_value_avg-','',names(table_seyfish)[indic_avg])
+# names(table_seyfish)[indic_avg] <- paste(names(table_seyfish)[indic_avg],'avg',sep='_')
+
+### Remove columns with only NA
+indic.nacolumn <- apply(is.na(table_seyfish),2,sum) == nrow(table_seyfish)
+#names(table_seyfish)[indic.nacolumn]
+table_seyfish <- table_seyfish[,!indic.nacolumn]
+
+### Add column indicating which preparation method was used for deriving mercury concentration
+table_seyfish$analysis_sample_description_hg <- ifelse(!is.na(table_seyfish$THg_c_dw_avg) & !is.na(table_seyfish$THg_c_ww_avg),'dry bulk|wet bulk',ifelse(!is.na(table_seyfish$THg_c_dw_avg) & is.na(table_seyfish$THg_c_ww_avg),'dry bulk',ifelse(is.na(table_seyfish$THg_c_dw_avg) & !is.na(table_seyfish$THg_c_ww_avg),'wet bulk',NA)))
+
+### Add flag for each tracer type
+table_seyfish$SI <- ifelse(!is.na(table_seyfish$d15n_permil_avg) | !is.na(table_seyfish$d15n_permil_lf_avg),'T','F')
+table_seyfish$Hg=ifelse((apply(table_seyfish[,c('THg_c_dw_avg','THg_c_ww_avg')],1,sum,na.rm=T))>0,'T','F')
+table_seyfish$Cd <- ifelse(!is.na(table_seyfish$Cd_dw_avg),'T','F')
+table_seyfish$Se <- ifelse(!is.na(table_seyfish$Se_dw_avg),'T','F')
+```
+
+```{r add_mahe_plateau_flag,echo=FALSE,results='asis',warning=FALSE,eval=TRUE}
+### Spatialise the data set
+table_seyfish_sp <- SpatialPointsDataFrame(coords = table_seyfish[,c('long_centroid','lat_centroid')],data = table_seyfish)
+proj4string(table_seyfish_sp) <- proj4string(plateau)
+indic.plateau = over(table_seyfish_sp,plateau)[,'gid']
+table_seyfish$MahePlateau <- ifelse(is.na(indic.plateau),'F','T') 
+
+# plot(plateau)
+# points(table_seyfish$long_centroid,table_seyfish$lat_centroid,cex=.4,pch=3)
+# points(table_seyfish[table_seyfish$MahePlateau=='T','long_centroid'],table_seyfish[table_seyfish$MahePlateau=='T','lat_centroid'],cex=.4,pch=21,col='red')
+```
+
+```{r export_dataset,echo=FALSE,results='asis',warning=FALSE,eval=TRUE}
+### Save the result
+options(xlsx.date.format = "yyyy-mm-dd")
+write.xlsx(table_seyfish, file = paste("table_seyfish_dataset_si_metals_",Sys.Date(),".xlsx",sep=''), colNames = TRUE, borders = "surrounding")
+```
+
+```{r define_fish_datafile,echo=FALSE,eval=TRUE}
+table_info_fixed$year <- lubridate::year(as.Date(table_info_fixed$date))
+### Datafile of all fish sampled
+seyfish_fish <- unique(table_info_fixed[,c('c_ocean','order','family','fish_identifier','fish_identifier_origin','gear_code','l_gear_fao_uk','vessel_code','vessel_name','avg_fishing_date','avg_landing_date','date','year','landing_site','long_centroid','lat_centroid','vessel_storage_mode','remarks_fishing','l_operator','c_sp_fao','english_name','scientific_name','seychelles_creole_name','project','sex','macro_maturity_stage','individual_length_unit','total_length','fork_length','lowerjawfork_length','carapace_length','individual_weight_unit','whole_fishweight','gutted_fishweight','gilledgutted_fishweight','tissue_weight_unit','gonads_total_weight','liver_weight','rest_viscera_weight','full_stomach_weight','empty_stomach_weight','remarks_sampling')])
+
+### Select fish with some analysis
+seyfish_analyzed <- table_seyfish[apply(table_seyfish[,51:76],1,function(x) sum(!is.na(x)))>0,]
+seyfish_analyzed$year <- lubridate::year(as.Date(seyfish_analyzed$date))
+
+### Datafile of fish sampled with subsequent analysis
+seyfish_analyzed_fish <- unique(seyfish_analyzed[,c('fish_identifier','fish_identifier_origin','gear_code','l_gear_fao_uk','vessel_code','vessel_name','avg_fishing_date','avg_landing_date','year','landing_site','long_centroid','lat_centroid','vessel_storage_mode','remarks_fishing','l_operator','c_sp_fao','english_name','scientific_name','seychelles_creole_name','project','sex','macro_maturity_stage','individual_length_unit','total_length','fork_length','lowerjawfork_length','carapace_length','individual_weight_unit','whole_fishweight','gutted_fishweight','gilledgutted_fishweight','tissue_weight_unit','gonads_total_weight','liver_weight','rest_viscera_weight','full_stomach_weight','empty_stomach_weight','remarks_sampling')])
+```
+
+# Fish collection
+
+## Sampling coverage
+
+```{r table_fish_ocean_gear, warning=FALSE,message=FALSE,echo=FALSE,eval=TRUE,results='asis'}
+nfish_ocean_gear <- ddply(seyfish_fish,c('c_ocean','gear_code','l_gear_fao_uk'),summarise,nfish=length(unique(fish_identifier)))
+kable(nfish_ocean_gear,row.names = FALSE, caption = 'Number of fish sampled by fishing gear.')
+```
+
+```{r table_fish_size_measurements, warning=FALSE,message=FALSE,echo=FALSE,eval=TRUE}
+table_fish_size_measurements <- ddply(seyfish_fish, c('order','family','c_sp_fao','scientific_name','english_name'),summarize, ntotal_length = sum(!is.na(total_length)), nfork_length = sum(!is.na(fork_length)), nlowerjawfork_length = sum(!is.na(lowerjawfork_length)),ncarapace_length = sum(!is.na(carapace_length)), nwhole_fishweight = sum(!is.na(whole_fishweight)), ngutted_fishweight = sum(!is.na(gutted_fishweight)), ngilledgutted_fishweight = sum(!is.na(gilledgutted_fishweight)))
+kable(table_fish_size_measurements,row.names = FALSE, caption = 'Number of fish per type of morphometric measurement')
+```
+
+```{r nfish_year_species_analyzed_wm,echo = FALSE, results = 'asis',eval=FALSE}
+nfish_year_species_analyzed <- ddply(seyfish_analyzed,c('year','c_sp_fao','english_name','seychelles_creole_name','scientific_name'),summarize,nfish=length(unique(fish_identifier)))
+kable(nfish_year_species_analyzed,caption = 'Fish sampled within the Seychelles EEZ with some analysis of metallic contaminants, mercury, and stable isotopes of carbon and nitrogen.',row.names = FALSE)
+```
+
+```{r table_fish_ocean_size, warning=FALSE,message=FALSE,echo=FALSE,eval=TRUE}
+### Add size adapted to species
+seyfish_fish$size <- ifelse(!is.na(seyfish_fish$fork_length),seyfish_fish$fork_length,ifelse(!is.na(seyfish_fish$lowerjawfork_length),seyfish_fish$lowerjawfork_length,ifelse(!is.na(seyfish_fish$carapace_length),seyfish_fish$carapace_length,ifelse(!is.na(seyfish_fish$total_length),seyfish_fish$total_length,seyfish_fish$whole_fishweight))))
+
+table_fish_ocean_size <- ddply(seyfish_fish,c('c_ocean','order','family','c_sp_fao','scientific_name','english_name'),summarise,nfish=length(unique(fish_identifier)),size_range=ifelse(sum(is.na(size)==0),paste(min(size,na.rm=T),max(size,na.rm=T),sep='-'),NA))
+
+kable(table_fish_ocean_size, row.names = FALSE,caption = 'Number and size range of fish sampled by ocean and species. Lower jaw fork length for billfish, total length for sharks, fork length for other fish species, and total weight for cephalopods.')
+```
+
+## Sampling location
+
+```{r plot_fish_centroids,warning=FALSE,message=FALSE,echo=FALSE,fig.width=8,fig.height=6,fig.show='asis',fig.align='center',fig.cap='Spatial distribution of fish sampled for subsequent analysis stable isotopes and metallic contaminants.',cache=FALSE}
+plot(world,add=F,col="black",xlim=c(40,65),ylim=c(-15,0),cex.axis=1.3, cex.lab=1.5,xlab="Longitude (°)", ylab="Latitude (°)")
+### Grid
+abline(v=seq(0,140,20),lty=2,col="darkgrey")
+abline(h=seq(-60,20,20),lty=2,col="darkgrey")
+### Axes
+axis(1,at=seq(0,140,20),labels=paste(seq(0,140,20),"°E",sep=""),tick=T,cex.axis=1.3,cex.lab=1.3)
+axis(2,at=seq(-80,40,20),tick=T,las=1,labels=c(NA,NA,"40°S","20°S","0","20°N",NA))
+axis(3,at=seq(0,140,20),labels=F,tick=T)
+axis(4,at=seq(-80,40,20),labels=F)
+### Add Seychelles EEZ
+plot(eez_sey,add=T)
+
+### Add the fish location
+points(seyfish_analyzed$long_centroid,seyfish_analyzed$lat_centroid,pch=21,col=alpha("red",0.1),cex=.5)
+```
+
+# Samples
+
+## Analysis type by species
+
+```{r nsamples_species,echo=FALSE,results='asis',warning=FALSE}
+nsamples_species <- ddply(table_seyfish,c('order','family','c_sp_fao','scientific_name','english_name'),summarize, FC=sum(!is.na(dry_extract_fat_avg)),SI=sum(!is.na(d15n_permil_lf_avg)),Hg_dw=sum(!is.na(THg_c_dw_avg)),Hg_ww=sum(!is.na(THg_c_ww_avg)),Se = sum(!is.na(Se_dw_avg)),Cd=sum(!is.na(Cd_dw_avg)))
+kable(nsamples_species,caption = '',row.names = FALSE)
+```
+
+## Sample position
+
+```{r nsamples_position,echo=FALSE,results='asis',warning=FALSE}
+nsamples_position <- ddply(na.omit(tracers),c('tissue','sample_position'),summarise, nfish=length(unique(fish_identifier)), ndata = sum(!is.na(measure_name)), SI = sum(measure_name=='d15n_permil_lf'),Hg=sum(measure_name=='THg_c_dw'),Se = sum(measure_name=='Se_dw'), Cd = sum(measure_name=='Cd_dw'))
+kable(nsamples_position,caption = '',row.names = FALSE)
+```
+
+```{r aldabra,include=T,fig.align='center',fig.width=10,fig.height=5,fig.cap='Mercury (Hg) concentration in white muscle of jobfish (AVR) and Emperor red snapper (LJB) in Aldabra and Mahe Plateau.',eval=TRUE}
+### Checking ALDABRA fish
+table_seyfish$aldabra <- ifelse(table_seyfish$fish_identifier %in% grep(pattern = 'ADB', table_seyfish$fish_identifier, fixed=F, value = T),'T','F')
+
+par(mfrow=c(1,2),mar=c(2,4.5,1,1),cex.axis = 1.3, cex.lab = 1.3)
+boxplot(THg_c_dw_avg ~ c_sp_fao,data = table_seyfish[table_seyfish$c_sp_fao %in% c('LJB','AVR') & table_seyfish$aldabra=='T' & table_seyfish$tissue=='White muscle',],ylab='Hg (ng/mg ww)',ylim=c(0,3), col = 'lightgrey')
+legend('topleft',cex=1.3,bty='n',legend='ALDABRA')
+boxplot(THg_c_dw_avg ~ c_sp_fao,data = table_seyfish[table_seyfish$c_sp_fao %in% c('LJB','AVR') & table_seyfish$tissue=='White muscle' & table_seyfish$MahePlateau=='T',],ylab='Hg (ng/mg ww)',ylim=c(0,3), col = 'lightgrey')
+legend('topleft',cex=1.3,bty='n',legend='MAHE')
+```
