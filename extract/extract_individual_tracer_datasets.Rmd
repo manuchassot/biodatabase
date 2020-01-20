@@ -6,6 +6,8 @@ output: pdf_document
 classoption: landscape
 ---
   
+# Load the libraries
+  
 ```{r load_libraries,echo=TRUE,eval=TRUE,results='hide',warning=FALSE,message=FALSE}
 ### Install/load devtools
 if(!require(devtools)){
@@ -38,9 +40,287 @@ drv <- dbDriver("PostgreSQL")
 con_emotion3_local <-  dbConnect(drv,user="postgres",dbname="emotion3",host="localhost")
 ```
 
+# Amino acids
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="aa_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name,
+am.measure_value_avg AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.analysis_type LIKE 'TAA'
+--AND so.tissue IN ('White muscle')
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_aa_raw_dataset,echo=TRUE,eval=TRUE}
+aa_dataset <- dcast.data.table(as.data.table(na.omit(aa_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_aa_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(aa_dataset,file=paste('../XLS/datasets_exports/aa_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
+# Dioxin
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="dioxin_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name,
+am.measure_value_avg AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.analysis_type LIKE 'Dioxin'
+--AND so.tissue IN ('White muscle')
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_dioxin_raw_dataset,echo=TRUE,eval=TRUE}
+dioxin_dataset <- dcast.data.table(as.data.table(na.omit(dioxin_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_dioxin_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(dioxin_dataset,file=paste('../XLS/datasets_exports/dioxin_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
+# Fatty acids
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="fa_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+(CASE WHEN am.fraction_type LIKE 'PL' THEN am.measure_name || '_pl'
+  ELSE (CASE WHEN am.fraction_type LIKE 'NL' THEN am.measure_name || '_nl'
+  ELSE (CASE WHEN am.fraction_type LIKE 'TL' THEN am.measure_name || '_tl'
+  ELSE am.measure_name END) END)END) AS measure_name,
+am.measure_value_avg AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.analysis_type LIKE 'FA'
+AND ( (am.measure_name LIKE ('%_p')) OR (am.measure_name LIKE ('%_c') ) )
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,sb.sample_origin_id,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_fa_raw_dataset,echo=TRUE,eval=TRUE}
+fa_dataset <- dcast.data.table(as.data.table(na.omit(fa_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_fa_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(fa_dataset,file=paste('../XLS/datasets_exports/fa_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
+# Mercury (dry weight)
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="hg_dry_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name || '_dw' AS measure_name,
+ROUND(am.measure_value_avg::numeric,4) AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.measure_name LIKE 'THg_c'
+AND am.analysis_sample_description LIKE 'dry bulk'
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_hg_dry_raw_dataset,echo=TRUE,eval=TRUE}
+hg_dry_dataset <- dcast.data.table(as.data.table(na.omit(hg_dry_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_hg_dry_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(hg_dry_dataset,file=paste('../XLS/datasets_exports/hg_dry_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
+# Mercury (wet weight)
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="hg_wet_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name || '_ww' AS measure_name,
+ROUND(am.measure_value_avg::numeric,4) AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+LEFT OUTER JOIN public.fishes_environments_calculated fc ON (fc.fish_identifier = fish.fish_identifier)
+WHERE am.measure_name LIKE 'THg_c'
+AND am.analysis_sample_description LIKE 'wet bulk'
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_hg_wet_raw_dataset,echo=TRUE,eval=TRUE}
+hg_wet_dataset <- dcast.data.table(as.data.table(na.omit(hg_wet_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_hg_wet_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(hg_wet_dataset,file=paste('../XLS/datasets_exports/hg_wet_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
+# Lipid classes
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="lc_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name,
+am.measure_value_avg AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.analysis_type LIKE 'LC'
+--AND so.tissue IN ('White muscle')
+--AND am.analysis_sample_description LIKE 'wet bulk'
+AND am.measure_name LIKE ('%_concentration')
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_lc_raw_dataset,echo=TRUE,eval=TRUE}
+lc_dataset <- dcast.data.table(as.data.table(na.omit(lc_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_lc_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(lc_dataset,file=paste('../XLS/datasets_exports/lc_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
+# Perfluorinated contaminants
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="pfc_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name,
+am.measure_value_avg AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.analysis_type LIKE 'PFC'
+--AND so.tissue IN ('White muscle')
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_pfc_raw_dataset,echo=TRUE,eval=TRUE}
+pfc_dataset <- dcast.data.table(as.data.table(na.omit(pfc_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_pfc_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(pfc_dataset,file=paste('../XLS/datasets_exports/pfc_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
+# Proteins
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="prot_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name,
+am.measure_value_avg AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.analysis_type LIKE 'Prot'
+--AND so.tissue IN ('White muscle')
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description
+```
+
+## Pivot the data set
+
+```{r pivot_prot_raw_dataset,echo=TRUE,eval=TRUE}
+prot_dataset <- dcast.data.table(as.data.table(na.omit(prot_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_prot_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(prot_dataset,file=paste('../XLS/datasets_exports/prot_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
 # Stable isotopes
 
-# Extract raw data set from the database
+## Extract raw data set from the database
 
 ```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="si_rawdata"}
 SELECT so.fish_identifier,
@@ -69,8 +349,82 @@ si_dataset <- dcast.data.table(as.data.table(na.omit(si_rawdata)),fish_identifie
 ## Export the data set
 
 ```{r export_si_dataset,echo=TRUE,eval=TRUE}
-write.xlsx(si_dataset,file='../XLS/datasets_exports/si_dataset.xlsx')
+write.xlsx(si_dataset,file=paste('../XLS/datasets_exports/si_dataset_',Sys.Date(),'.xlsx',sep=''))
 ```
+
+# Metallic contaminants (dry weight)
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="tm_dry_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name || '_dw' AS measure_name,
+--ROUND(CASE WHEN am.analysis_sample_description LIKE 'dry bulk' THEN am.measure_value_avg ELSE am.measure_value_avg * 4::double precision END::numeric,4) AS measure_value
+ROUND(am.measure_value_avg::numeric,4) AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.analysis_type LIKE 'TM'
+AND am.analysis_sample_description LIKE 'dry bulk'
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_tm_dry_raw_dataset,echo=TRUE,eval=TRUE}
+tm_dry_dataset <- dcast.data.table(as.data.table(na.omit(tm_dry_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_tm_dry_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(tm_dry_dataset,file=paste('../XLS/datasets_exports/tm_dry_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
+# Metallic contaminants (wet weight)
+
+## Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="tm_wet_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name || '_ww' AS measure_name,
+--ROUND(CASE WHEN am.analysis_sample_description LIKE 'wet bulk' THEN am.measure_value_avg ELSE am.measure_value_avg / 4::double precision END::numeric,4) AS measure_value
+ROUND(am.measure_value_avg::numeric,4) AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.analysis_type LIKE 'TM'
+AND am.analysis_sample_description LIKE 'wet bulk'
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_tm_wet_raw_dataset,echo=TRUE,eval=TRUE}
+tm_wet_dataset <- dcast.data.table(as.data.table(na.omit(tm_wet_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_tm_wet_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(tm_wet_dataset,file=paste('../XLS/datasets_exports/tm_wet_dataset_',Sys.Date(),'.xlsx',sep=''))
+```
+
+
+
+
 
 ```{r disconnect_emotiondb,echo=FALSE,results='hide',include='FALSE',eval=TRUE}
 dbDisconnect(con_emotion3_local)
