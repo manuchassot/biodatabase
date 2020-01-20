@@ -1,0 +1,99 @@
+---
+title: 'BIODATABASE: Loading analysis data'
+author: 'Manu Chassot'
+date: "`r format(Sys.time(), '%d %B %Y')`"
+classoption: 'landscape'
+---
+  
+```{r load_libraries,echo=FALSE,eval=TRUE,results='hide'}
+### Install/load devtools
+if(!require(devtools)){
+  install.packages("devtools", repos = "https://pbil.univ-lyon1.fr/CRAN/")
+  suppressPackageStartupMessages(library(devtools,quietly = TRUE))
+}
+
+### Install/load lubripack
+if(!require(lubripack)){
+  install_github("espanta/lubripack")
+  suppressPackageStartupMessages(library(lubripack,quietly = TRUE))
+}
+
+### Install/load libraries required for analysis
+lubripack('RPostgreSQL','knitr','lubridate','openxlsx','data.table',silent = FALSE)
+```
+
+```{r document_parameters,echo=FALSE,results='hide',eval=TRUE}
+### English
+Sys.setlocale("LC_TIME", "en_US.UTF-8")
+
+### PDF/DOC document parameters
+knitr::opts_chunk$set(echo = FALSE,tidy.opts=list(width.cutoff=80),tidy=TRUE,size='footnotesize',fig.width=4.5,fig.height=4.5, fig.align = 'center')
+```
+
+# Connect to the database
+
+```{r database_connection,echo=TRUE,eval=TRUE}
+drv <- dbDriver("PostgreSQL")
+con_emotion3_local <-  dbConnect(drv,user="postgres",dbname="emotion3",host="localhost")
+```
+
+# Load tracer values
+
+The values of ecological tracers are currently loaded in the database with the Talend job 'load_melting_data' which calls the function melt_analysis_tracers.R that requires as input the list of tracers (analysis_tracers_details.csv) to be inserted in the table analyses_tables.analysis_measures. The list of tracers is generated from the data dictionary design (DDD) loaded in the table metadata.ddd and stored in the table metadata.analysis_tracer_details.
+
+Any addition or removal of tracer in the database will then require the following steps:
+
+1. Update of the spreadsheet DDD from the file 'DDD_database_date.xlsx'. All fields should be entered: entity, tracer_name,	data_type,	unit,	basic_checks,	comment,	tracer,	views_level
+2. Loading of the data dictionary in the database with the code 'load_metadata.Rmd' to update the table 'metadata.ddd'
+3. Update of the table metadata.analysis_tracer_details with the SQL query embedded within the code load_metadata.Rmd
+4. Export of the table 'metadata.analysis_tracer_details' to 'analysis_tracer_details.csv' called by the code 'melt_analysis_tracers.R'
+5. The code 'melt_analysis_tracers.R' can be called from the Talend job load_melting_data or from a R console
+
+## Perfluorinated component contaminants 
+
+### Read PFC data from spreadsheet
+
+```{r read_pfc,echo=TRUE,eval=TRUE}
+pfc <- fread("../CSV/analysis/Data_Contaminants_PFC.csv")
+pfc[, analysis_date := as.POSIXct(analysis_date,format='%d/%m/%Y',tz='SCT')]
+```
+
+## Create data set of PFC analysis information
+
+```{r create_pfc_analysis_info,echo=TRUE,eval=FALSE}
+pfc_analysis_info <- pfc[, .(analysis_id=talend_an_id,certified_material,pfc_c_unit)]
+write.table(pfc_analysis_info,file='/tmp/pfc_analysis_info.csv',row.names = FALSE,sep="\t",na = '')
+```
+
+## Insert PFC analysis information data
+
+```{r delete_contents_pfc_analysis_info_before_insertion,echo=TRUE,eval=FALSE}
+delete.pfc_analysis <- dbSendQuery(con_emotion3_local,"DELETE FROM analysis_tables.contaminants_pfc")
+```
+
+```{r insert_pfc_analysis_info,echo=TRUE,eval=FALSE}
+insert.pfc_analysis_info <- dbSendQuery(con_emotion3_local,
+paste0("COPY analysis_tables.contaminants_pfc
+FROM '/tmp/pfc_analysis_info.csv'
+WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+## Add PFC data to analysis table
+
+```{r create_pfc_analysis,echo=TRUE,eval=FALSE}
+pfc_analysis <- pfc[, .(analysis_id=talend_an_id,sample_id=sample_identifier,analysis_type=analysis,analysis_replicate,analysis_lab,analysis_operator=operator_name,analysis_sample_description,analysis_mode,analysis_date,remarks_analysis,data_file_name=NA,analysis_mass=NA,analysis_mass_unit=NA,analysis_date_check=NA)]
+write.table(pfc_analysis,file='/tmp/pfc_analysis.csv',row.names = FALSE,sep="\t",na = '')
+```
+
+## Insert PFC analysis information data
+
+```{r insert_pfc_analysis,echo=TRUE,eval=FALSE}
+insert.pfc_analysis <- dbSendQuery(con_emotion3_local,
+paste0("COPY analysis_tables.analysis
+FROM '/tmp/pfc_analysis.csv'
+WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+```{r disconnect_emotiondb,echo=FALSE,results='hide',include='FALSE'}
+dbDisconnect(con_emotion3_local)
+```

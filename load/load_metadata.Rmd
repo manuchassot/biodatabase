@@ -40,7 +40,7 @@ con_emotion3_local <-  dbConnect(drv,user="postgres",dbname="emotion3",host="loc
 # Read metadata from spreadsheet
 
 ```{r read_ddd,echo=TRUE,eval=TRUE}
-ddd <- read.xlsx("../XLS/DDD_Database.xlsx",sheet='DDD')
+ddd <- data.table(read.xlsx("../XLS/DDD_Database.xlsx",sheet='DDD'))
 ### Save in temp to allow for insertion in the database
 write.table(ddd,file='/tmp/ddd.csv',row.names = FALSE,sep="\t",na = '')
 ```
@@ -66,10 +66,14 @@ ALTER TABLE metadata.ddd OWNER TO \"dbaEmotion\";"
 ,sep=""))
 ```
 
+```{r delete_contents_metadata_ddd,echo=TRUE,eval=TRUE}
+delete.contents.metadata.ddd <- dbSendQuery(con_emotion3_local,paste0("DELETE FROM metadata.ddd"))
+```
+
 ## Insert into metadata table 
 
-```{r load_metadata.ddd,echo=TRUE,eval=FALSE}
-send.metadata.ddd <- dbSendQuery(con_emotion3_local,paste0("COPY metadata.ddd FROM '/tmp/ddd.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```{r load_metadata.ddd,echo=TRUE,eval=TRUE}
+insert.metadata.ddd <- dbSendQuery(con_emotion3_local,paste0("COPY metadata.ddd FROM '/tmp/ddd.csv' WITH DELIMITER E'\\t' CSV HEADER"))
 ```
 
 # Create analysis tracers details
