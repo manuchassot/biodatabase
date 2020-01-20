@@ -1,0 +1,112 @@
+---
+title: 'BIODATABASE: Loading metadata'
+author: 'Manu Chassot'
+date: "`r format(Sys.time(), '%d %B %Y')`"
+classoption: 'landscape'
+---
+
+```{r load_libraries,echo=FALSE,eval=TRUE,results='hide'}
+### Install/load devtools
+if(!require(devtools)){
+  install.packages("devtools", repos = "https://pbil.univ-lyon1.fr/CRAN/")
+  suppressPackageStartupMessages(library(devtools,quietly = TRUE))
+}
+
+### Install/load lubripack
+if(!require(lubripack)){
+  install_github("espanta/lubripack")
+  suppressPackageStartupMessages(library(lubripack,quietly = TRUE))
+}
+
+### Install/load libraries required for analysis
+lubripack('RPostgreSQL','knitr','lubridate','openxlsx','data.table',silent = FALSE)
+```
+
+```{r document_parameters,echo=FALSE,results='hide',eval=TRUE}
+### English
+Sys.setlocale("LC_TIME", "en_US.UTF-8")
+
+### PDF/DOC document parameters
+knitr::opts_chunk$set(echo = FALSE,tidy.opts=list(width.cutoff=80),tidy=TRUE,size='footnotesize',fig.width=4.5,fig.height=4.5, fig.align = 'center')
+```
+
+# Connect to the database
+
+```{r database_connection,echo=TRUE,eval=TRUE}
+drv <- dbDriver("PostgreSQL")
+con_emotion3_local <-  dbConnect(drv,user="postgres",dbname="emotion3",host="localhost")
+```
+
+# Read metadata from spreadsheet
+
+```{r read_ddd,echo=TRUE,eval=TRUE}
+ddd <- read.xlsx("../XLS/DDD_Database.xlsx",sheet='DDD')
+### Save in temp to allow for insertion in the database
+write.table(ddd,file='/tmp/ddd.csv',row.names = FALSE,sep="\t",na = '')
+```
+
+# Load data dictionary design
+
+## Create or replace metadata table
+
+```{r create_metadata_ddd,echo=TRUE,eval=FALSE}
+create.metadata.ddd <- dbSendQuery(con_emotion3_local,paste0("
+DROP TABLE IF EXISTS metadata.ddd;
+CREATE TABLE metadata.ddd (
+entity character varying(255),
+variable character varying(255),
+data_type character varying(255),
+unit character varying(255),
+basic_checks character varying(255),
+description character varying(2500),
+variable_type integer,
+views_level integer
+);
+ALTER TABLE metadata.ddd OWNER TO \"dbaEmotion\";"
+,sep=""))
+```
+
+## Insert into metadata table 
+
+```{r load_metadata.ddd,echo=TRUE,eval=FALSE}
+send.metadata.ddd <- dbSendQuery(con_emotion3_local,paste0("COPY metadata.ddd FROM '/tmp/ddd.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# Create analysis tracers details
+
+```{r create_metadata_analysis_tracers_details,echo=TRUE,eval=FALSE}
+create.metadata.analysis.tracers.details <- dbSendQuery(con_emotion3_local,paste0("
+DROP TABLE IF EXISTS metadata.analysis_tracers_details CASCADE;
+CREATE TABLE metadata.analysis_tracers_details AS
+SELECT entity AS analysis_type,
+variable AS tracer_name,
+unit AS standard_unit,
+description AS tracer_description,
+views_level
+FROM metadata.ddd
+WHERE variable_type = 1
+ORDER BY analysis_type,tracer_name;",sep=""))
+```
+
+<!-- ### Save the metadata csv file -->
+<!-- ### Command terminal -->
+<!-- ## \copy (SELECT * FROM metadata.analysis_tracers_details) TO '/home/stagiaire/Emotion3/CSV/metadata/analysis_tracers_details.csv' WITH DELIMITER E'\t' CSV HEADER -->
+
+# Create fish measurements details
+
+```{r create_metadata_analysis_fish_measure_details,echo=TRUE,eval=FALSE}
+create.metadata.fish.measures.details <- dbSendQuery(con_emotion3_local,paste0("
+DROP TABLE IF EXISTS metadata.fish_measures_details;
+CREATE TABLE metadata.fish_measures_details AS
+SELECT variable AS measure_name,
+unit AS standard_unit,
+description AS measure_description
+FROM metadata.ddd
+WHERE variable_type = 2
+ORDER BY measure_name;",sep=""))
+```
+
+<!-- ### Save the metadata csv file -->
+<!-- ### Command terminal -->
+<!-- ## \copy (SELECT * FROM metadata.fish_measures_details) TO '/home/stagiaire/Emotion3/CSV/metadata/fish_measures_details.csv' WITH DELIMITER E'\t' CSV HEADER -->
+
