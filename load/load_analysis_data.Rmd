@@ -81,7 +81,7 @@ WITH DELIMITER E'\\t' CSV HEADER"))
 ## Add PFC data to analysis table
 
 ```{r create_pfc_analysis,echo=TRUE,eval=FALSE}
-pfc_analysis <- pfc[, .(analysis_id=talend_an_id,sample_id=sample_identifier,analysis_type=analysis,analysis_replicate,analysis_lab,analysis_operator=operator_name,analysis_sample_description,analysis_mode,analysis_date,remarks_analysis,data_file_name=NA,analysis_mass=NA,analysis_mass_unit=NA,analysis_date_check=NA)]
+pfc_analysis <- pfc[, .(analysis_id=talend_an_id,sample_id=subsample_identifier,analysis_type=analysis,analysis_replicate,analysis_lab,analysis_operator=operator_name,analysis_sample_description,analysis_mode,analysis_date,remarks_analysis,data_file_name=NA,analysis_mass=NA,analysis_mass_unit=NA,analysis_date_check=NA)]
 write.table(pfc_analysis,file='/tmp/pfc_analysis.csv',row.names = FALSE,sep="\t",na = '')
 ```
 
