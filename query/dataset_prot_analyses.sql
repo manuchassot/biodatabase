@@ -10,8 +10,8 @@
 SELECT so.fish_identifier,
 so.tissue,
 so.sample_position,
-sb.sample_origin_id,
-am.sample_id,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
 am.analysis_sample_description,
 am.measure_name,
 am.measure_value_avg AS measure_value
@@ -21,4 +21,4 @@ INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_i
 INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
 WHERE am.analysis_type LIKE 'Prot'
 --AND so.tissue IN ('White muscle')
-ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;

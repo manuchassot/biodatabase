@@ -7,8 +7,8 @@
 SELECT so.fish_identifier,
 so.tissue,
 so.sample_position,
-sb.sample_origin_id,
-am.sample_id,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
 am.analysis_sample_description,
 am.measure_name,
 am.measure_value_avg AS measure_value

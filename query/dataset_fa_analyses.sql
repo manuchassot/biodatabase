@@ -9,8 +9,8 @@
 SELECT so.fish_identifier,
 so.tissue,
 so.sample_position,
-sb.sample_origin_id,
-am.sample_id,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
 am.analysis_sample_description,
 (CASE WHEN am.fraction_type LIKE 'PL' THEN am.measure_name || '_pl' ELSE (CASE WHEN am.fraction_type LIKE 'NL' THEN am.measure_name || '_nl' ELSE (CASE WHEN am.fraction_type LIKE 'TL' THEN am.measure_name || '_tl' ELSE am.measure_name END) END)END) AS measure_name,
 am.measure_value_avg AS measure_value
