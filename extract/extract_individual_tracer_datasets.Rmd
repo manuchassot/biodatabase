@@ -1,0 +1,77 @@
+---
+title: 'BIODATABASE: Extracting analysis data'
+author: "Manu Chassot"
+date: '`r format(Sys.time(), "%d %B %Y")`'
+output: pdf_document
+classoption: landscape
+---
+  
+```{r load_libraries,echo=TRUE,eval=TRUE,results='hide',warning=FALSE,message=FALSE}
+### Install/load devtools
+if(!require(devtools)){
+  install.packages("devtools", repos = "https://pbil.univ-lyon1.fr/CRAN/")
+  suppressPackageStartupMessages(library(devtools,quietly = TRUE))
+}
+
+### Install/load lubripack
+if(!require(lubripack)){
+  install_github("espanta/lubripack")
+  suppressPackageStartupMessages(library(lubripack,quietly = TRUE))
+}
+
+### Install/load libraries required for analysis
+lubripack('RPostgreSQL','knitr','lubridate','openxlsx','data.table',silent = FALSE)
+```
+
+```{r document_parameters,echo=FALSE,results='hide',eval=TRUE}
+### English
+Sys.setlocale("LC_TIME", "en_US.UTF-8")
+
+### PDF/DOC document parameters
+knitr::opts_chunk$set(echo = FALSE,tidy.opts=list(width.cutoff=80),tidy=TRUE,size='footnotesize',fig.width=4.5,fig.height=4.5, fig.align = 'center')
+```
+
+# Connect to the database
+
+```{r database_connection,echo=TRUE,eval=TRUE}
+drv <- dbDriver("PostgreSQL")
+con_emotion3_local <-  dbConnect(drv,user="postgres",dbname="emotion3",host="localhost")
+```
+
+# Stable isotopes
+
+# Extract raw data set from the database
+
+```{sql,connection=con_emotion3_local,include=TRUE,cache=FALSE,echo=TRUE,eval=TRUE,output.var="si_rawdata"}
+SELECT so.fish_identifier,
+so.tissue,
+so.sample_position,
+sb.sample_origin_id AS sample_identifier,
+am.sample_id AS subsample_identifier,
+am.analysis_sample_description,
+am.measure_name,
+am.measure_value_avg AS measure_value
+FROM analysis_tables.analysis_measures_over_analysis_replicates am
+INNER JOIN public.sample_bank sb ON (am.sample_id = sb.sample_id)
+INNER JOIN public.samples_origin so ON (sb.sample_origin_id = so.sample_origin_id)
+INNER JOIN public.fish ON (fish.fish_identifier = so.fish_identifier)
+WHERE am.analysis_type LIKE 'SI'
+--AND am.analysis_sample_description NOT LIKE 'dry lipid-free'
+ORDER BY so.fish_identifier,so.tissue,so.sample_position,am.sample_id,am.analysis_sample_description;
+```
+
+## Pivot the data set
+
+```{r pivot_si_raw_dataset,echo=TRUE,eval=TRUE}
+si_dataset <- dcast.data.table(as.data.table(na.omit(si_rawdata)),fish_identifier+tissue+sample_position+sample_identifier+subsample_identifier+analysis_sample_description~measure_name,value.var = 'measure_value')
+```
+
+## Export the data set
+
+```{r export_si_dataset,echo=TRUE,eval=TRUE}
+write.xlsx(si_dataset,file='../XLS/datasets_exports/si_dataset.xlsx')
+```
+
+```{r disconnect_emotiondb,echo=FALSE,results='hide',include='FALSE',eval=TRUE}
+dbDisconnect(con_emotion3_local)
+```
