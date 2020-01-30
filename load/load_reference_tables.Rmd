@@ -1,0 +1,544 @@
+---
+title: 'BIODATABASE: Loading reference tables'
+author: 'Manu Chassot'
+date: "`r format(Sys.time(), '%d %B %Y')`"
+classoption: 'landscape'
+---
+
+```{r load_libraries,echo=TRUE,eval=TRUE,results='hide',warning=FALSE,message=FALSE}
+### Extend Java memory for XLConnect
+#options(java.parameters = "-Xmx1024m")
+options(java.parameters = "-Xmx2048m")
+#options(java.parameters = "-Xmx4g" )
+
+### Install/load devtools
+if(!require(devtools)){
+  install.packages("devtools", repos = "https://pbil.univ-lyon1.fr/CRAN/")
+  suppressPackageStartupMessages(library(devtools,quietly = TRUE))
+}
+
+### Install/load lubripack
+if(!require(lubripack)){
+  install_github("espanta/lubripack")
+  suppressPackageStartupMessages(library(lubripack,quietly = TRUE))
+}
+
+### Install/load libraries required for analysis
+lubripack('RPostgreSQL','knitr','lubridate','XLConnect',silent = FALSE)
+```
+
+```{r document_parameters,echo=FALSE,results='hide',eval=TRUE}
+### English
+Sys.setlocale("LC_TIME", "en_US.UTF-8")
+
+### PDF/DOC document parameters
+knitr::opts_chunk$set(echo = FALSE,tidy.opts=list(width.cutoff=80),tidy=TRUE,size='footnotesize',fig.width=4.5,fig.height=4.5, fig.align = 'center')
+```
+
+# Connect to the database
+
+```{r database_connection,echo=TRUE,eval=TRUE}
+drv <- dbDriver("PostgreSQL")
+con_emotion3_local <-  dbConnect(drv,user="postgres",dbname="emotion3",host="localhost")
+```
+
+# Read metadata from spreadsheet
+
+```{r read_ddd,echo=TRUE,eval=FALSE}
+DDD <- XLConnect::loadWorkbook("../XLS/DDD_Database.xls", create = FALSE)
+```
+
+# 1- Anchored Fish Aggregating Devices
+
+```{r afads,echo=TRUE,eval=FALSE}
+afad <- readWorksheet(DDD,sheet='AFAD')
+
+### Save in temp to allow for insertion in the database
+write.table(afad,file='/tmp/afad.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.afad
+send.references.tables.afad <- dbSendQuery(con_emotion3_local,
+paste0("COPY references_tables.afad FROM '/tmp/afad.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 2- Amino-acids list
+
+```{r amino_acids,echo=TRUE,eval=FALSE}
+amino_acids <- readWorksheet(DDD,"AMINO_ACIDS")
+
+### Save in temp to allow for insertion in the database
+write.table(amino_acids,file='/tmp/amino_acids.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.amino_acids
+send.references.tables.amino_acids <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.amino_acids FROM '/tmp/amino_acids.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 3- Analysis groups
+
+```{r analysis,echo=TRUE,eval=FALSE}
+analysis <- readWorksheet(DDD,"ANALYSIS")
+
+### Save in temp to allow for insertion in the database
+analyis_groups <- unique(analysis[,c("analysis_group","desc_analysis_group")])
+analyis_groups <- analyis_groups[order(analyis_groups$analysis_group),]
+write.table(analyis_groups,file='/tmp/analysis_groups.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.analysis_groups
+send.references.tables.analyis_groups <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.analysis_groups FROM '/tmp/analysis_groups.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 4- Analysis laboratories
+
+```{r analysis_lab,echo=TRUE,eval=FALSE}
+### Extract spreadsheet ANALYSIS_LAB
+analysis_lab <- readWorksheet(DDD,"ANALYSIS_LAB")
+
+### Save in temp to allow for insertion in the database
+write.table(analysis_lab,file='/tmp/analysis_lab.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.analysis_lab
+send.references.tables.analyis_lab <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.analysis_lab FROM '/tmp/analysis_lab.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 5- Matching between groups of analysis and analysis types
+
+```{r analysis_matching_groups,echo=TRUE,eval=FALSE}
+analysis_matching_groups <- unique(analysis[,c('analysis_group','analysis')])
+names(analysis_matching_groups)[2] <- "analysis_type"
+
+### Save in temp to allow for insertion in the database
+write.table(analysis_matching_groups,file='/tmp/analysis_matching_groups.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.analysis_matching_groups
+send.references.tables.analyis_matching_groups <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.analysis_matching_groups FROM '/tmp/analysis_matching_groups.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 6- Analysis modes
+
+```{r analysis_modes,echo=TRUE,eval=FALSE}
+analysis_modes <- readWorksheet(DDD,"ANALYSIS_MODE")
+
+### Save in temp to allow for insertion in the database
+write.table(analysis_modes,file='/tmp/analysis_modes.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.analysis_modes
+send.references.tables.analyis_modes <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.analysis_modes FROM '/tmp/analysis_modes.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 7- Analysis replicates
+
+```{r analysis_replicate,echo=TRUE,eval=FALSE}
+analysis_replicate <- readWorksheet(DDD,"ANALYSIS_REPLICATE")
+
+### Save in temp to allow for insertion in the database
+write.table(analysis_replicate,file='/tmp/analysis_replicate.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.analysis_replicate
+send.references.tables.analyis_replicate <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.analysis_replicate FROM '/tmp/analysis_replicate.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 8- Analysis sample description
+
+```{r analysis_sample_description,echo=TRUE,eval=FALSE}
+analysis_sample_description <- readWorksheet(DDD,"ANALYSIS_SAMP_DESCRIPTION")
+
+### Save in temp to allow for insertion in the database
+write.table(analysis_sample_description,file='/tmp/analysis_sample_description.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.analysis_sample_description
+send.references.tables.analyis_sample_description <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.analysis_sample_description FROM '/tmp/analysis_sample_description.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 9- Analysis types
+
+```{r analysis_types,echo=TRUE,eval=FALSE}
+analysis_types <- unique(analysis[,c('analysis','desc_analysis')])
+### Extract each component of analysis$desc_analysis from cut at '\n' and get first element
+analysis_types$desc_analysis <- unlist(lapply(strsplit(analysis_types$desc_analysis,split = "\n"), function(l) l[[1]]))
+
+### Save in temp to allow for insertion in the database
+write.table(analysis_types,file='/tmp/analysis_types.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.analysis_types
+send.references.tables.analyis_types <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.analysis_types FROM '/tmp/analysis_types.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 10- Atresia stages
+
+```{r atresia,echo=TRUE,eval=FALSE}
+atresia <- readWorksheet(DDD,"ATRESIA")
+
+### Save in temp to allow for insertion in the database
+write.table(atresia,file='/tmp/atresia.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.atresia
+send.references.tables.atresia <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.atresia FROM '/tmp/atresia.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 11- Certified reference materials
+
+```{r certified_reference_materials,echo=TRUE,eval=FALSE}
+crm <- readWorksheet(DDD,"CRM")
+
+### Save in temp to allow for insertion in the database
+write.table(crm,file='/tmp/crm.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.crm
+send.references.tables.crm <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.crm FROM '/tmp/crm.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 12- Derivatization modes
+
+```{r derivatization_mode,echo=TRUE,eval=FALSE}
+derivatization_mode <- readWorksheet(DDD,"DERIVATIZATION_MODE")
+
+### Save in temp to allow for insertion in the database
+write.table(derivatization_mode,file='/tmp/derivatization_mode.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.vessel_storage
+send.references.tables.derivatization_mode <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.derivatization_mode FROM '/tmp/derivatization_mode.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 13- Drying modes
+
+```{r drying_mode,echo=TRUE,eval=FALSE}
+drying_mode <- readWorksheet(DDD,"DRYING_MODE")
+
+### Save in temp to allow for insertion in the database
+write.table(drying_mode,file='/tmp/drying_mode.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.atresia
+send.references.tables.drying_mode <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.drying_mode FROM '/tmp/drying_mode.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 14- Extraction modes
+
+```{r extraction_mode,echo=TRUE,eval=FALSE}
+extraction_mode <- readWorksheet(DDD,"EXTRACTION_MODE")
+
+### Save in temp to allow for insertion in the database
+write.table(extraction_mode,file='/tmp/extraction_mode.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.extraction_mode
+send.references.tables.extraction_mode <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.extraction_mode FROM '/tmp/extraction_mode.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 15- Fatty acids list
+
+```{r fatty_acids,echo=TRUE,eval=FALSE}
+fatty_acids <- readWorksheet(DDD,"FATTY_ACIDS")
+
+### Save in temp to allow for insertion in the database
+write.table(fatty_acids,file='/tmp/fatty_acids.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.fatty_acids
+send.references.tables.fatty_acids <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.fatty_acids FROM '/tmp/fatty_acids.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 16- Fishing modes
+
+```{r fishing_mode,echo=TRUE,eval=FALSE}
+fishing_mode <- readWorksheet(DDD,"FISHING_MODE")
+
+### Save in temp to allow for insertion in the database
+write.table(fishing_mode,file='/tmp/fishing_mode.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.fishing_mode
+send.references.tables.fishing_mode <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.fishing_mode FROM '/tmp/fishing_mode.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 17- Fishing gears
+
+```{r gear,echo=TRUE,eval=FALSE}
+gear <- readWorksheet(DDD,"GEAR")
+
+### Save in temp to allow for insertion in the database
+write.table(gear,file='/tmp/gear.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.gear
+send.references.tables.gear <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.gear FROM '/tmp/gear.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 18- Grinding modes
+
+```{r grinding_mode,echo=TRUE,eval=FALSE}
+grinding_mode <- readWorksheet(DDD,"GRINDING_MODE")
+
+### Save in temp to allow for insertion in the database
+write.table(grinding_mode,file='/tmp/grinding_mode.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.grinding_mode
+send.references.tables.grinding_mode <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.grinding_mode FROM '/tmp/grinding_mode.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 19- Landing sites
+
+```{r landing,echo=TRUE,eval=FALSE}
+landing <- readWorksheet(DDD,"LANDING")
+
+### Save in temp to allow for insertion in the database
+write.table(landing,file='/tmp/landing.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.landing
+send.references.tables.landing <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.landing FROM '/tmp/landing.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 20- Macroscopic maturity stages [visual exam]
+
+```{r macro_maturity,echo=TRUE,eval=FALSE}
+macro_maturity <- readWorksheet(DDD,"MACRO_MATURITY")
+
+### Save in temp to allow for insertion in the database
+write.table(macro_maturity,file='/tmp/macro_maturity.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.macro_maturity
+send.references.tables.macro_maturity <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.macro_maturity FROM '/tmp/macro_maturity.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 21- Microscopic maturity stages [histology]
+
+```{r micro_maturity_stage,echo=TRUE,eval=FALSE}
+micro_maturity_stage <- readWorksheet(DDD,"MICRO_MATURITY")
+
+### Save in temp to allow for insertion in the database
+write.table(micro_maturity_stage,file='/tmp/micro_maturity_stage.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.micro_maturity
+send.references.tables.micro_maturity_stage <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.micro_maturity_stage FROM '/tmp/micro_maturity_stage.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 22- Minerals
+
+```{r minerals,echo=TRUE,eval=FALSE}
+minerals <- readWorksheet(DDD,"MINERALS")
+
+### Save in temp to allow for insertion in the database
+write.table(minerals,file='/tmp/minerals.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.micro_maturity
+send.references.tables.minerals <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.minerals FROM '/tmp/minerals.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 23- Oceans
+
+```{r ocean,echo=TRUE,eval=FALSE}
+ocean <- readWorksheet(DDD,"OCEAN")
+
+### Save in temp to allow for insertion in the database
+write.table(ocean,file='/tmp/ocean.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.ocean
+send.references.tables.ocean <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.ocean FROM '/tmp/ocean.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 24- Operators
+
+```{r operator,echo=TRUE,eval=FALSE}
+### Extract spreadsheet 
+operator <- readWorksheet(DDD,"OPERATOR")
+
+### Remove second affiliation
+### Temporary: Each affiliation should be added in the table
+operator <- operator[,c('l_operator','Affiliation1')]
+
+### Save in temp to allow for insertion in the database
+write.table(operator,file='/tmp/operator.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.operator
+send.references.tables.operator <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.operator FROM '/tmp/operator.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 25- Organic contaminants
+
+```{r organic_contaminants,echo=TRUE,eval=FALSE}
+organic_contaminants <- readWorksheet(DDD,"ORGANIC_CONTAMINANTS")
+
+### Save in temp to allow for insertion in the database
+write.table(organic_contaminants,file='/tmp/organic_contaminants.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.vessel_storage
+send.references.tables.organic_contaminants <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.organic_contaminants FROM '/tmp/organic_contaminants.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 26- Otolith measurement types
+
+```{r otolith_measurement_types,echo=TRUE,eval=FALSE}
+otolith_measurement_type <- readWorksheet(DDD,"OTOLITHS")
+
+### Save in temp to allow for insertion in the database
+write.table(otolith_measurement_type,file='/tmp/otolith_measurement_type.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.otolith_measurement_type
+send.references.tables.otolith_measurement_type <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.otolith_measurement_type FROM '/tmp/otolith_measurement_type.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 27- Packaging types
+
+```{r packaging,echo=TRUE,eval=FALSE}
+packaging <- readWorksheet(DDD,"PACKAGING")
+
+### Save in temp to allow for insertion in the database
+write.table(packaging,file='/tmp/packaging.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.packaging
+send.references.tables.packaging <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.packaging FROM '/tmp/packaging.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 28- Post-ovulatory follicles classification
+
+```{r pof,echo=TRUE,eval=FALSE}
+pof <- readWorksheet(DDD,"POF")
+
+### Save in temp to allow for insertion in the database
+write.table(pof,file='/tmp/pof.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.pof
+send.references.tables.pof <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.pof FROM '/tmp/pof.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 29- Prey groups
+
+```{r prey_groups,echo=TRUE,eval=FALSE}
+prey_groups <- readWorksheet(DDD,"PREY_GROUPS")
+
+### Save in temp to allow for insertion in the database
+write.table(prey_groups,file='/tmp/prey_groups.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.prey_groups
+send.references.tables.prey_groups <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.prey_groups FROM '/tmp/prey_groups.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 30- Processing replicates
+
+```{r processing_replicates,echo=TRUE,eval=FALSE}
+processing_replicates <- readWorksheet(DDD,"PROCESSING_REPLICATE")
+
+### Save in temp to allow for insertion in the database
+write.table(processing_replicates,file='/tmp/processing_replicates.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.processing_replicate
+send.references.tables.processing_replicates <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.processing_replicates FROM '/tmp/processing_replicates.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 31- Projects
+
+```{r project,echo=TRUE,eval=FALSE}
+project <- readWorksheet(DDD,"PROJECT")
+
+### Save in temp to allow for insertion in the database
+write.table(project,file='/tmp/project.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.project
+send.references.tables.project <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.project FROM '/tmp/project.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 32- Sample positions
+
+```{r sample_position,echo=TRUE,eval=FALSE}
+sample_position <- readWorksheet(DDD,"SAMPLE_POSITION")
+
+### Save in temp to allow for insertion in the database
+write.table(sample_position,file='/tmp/sample_position.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.sample_position
+send.references.tables.sample_position <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.sample_position FROM '/tmp/sample_position.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 33- Sampling platforms
+
+```{r sampling_platforms,echo=TRUE,eval=FALSE}
+sampling_platform <- readWorksheet(DDD,"SAMPLING_PLATFORM")
+
+### Save in temp to allow for insertion in the database
+write.table(sampling_platform,file='/tmp/sampling_platform.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.sampling_platform
+send.references.tables.sampling_platform <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.sampling_platform FROM '/tmp/sampling_platform.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 34- Sex classification
+
+```{r sex,echo=TRUE,eval=FALSE}
+sex <- readWorksheet(DDD,"SEX")
+
+### Save in temp to allow for insertion in the database
+write.table(sex,file='/tmp/sex.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.sex
+send.references.tables.sex <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.sex FROM '/tmp/sex.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 35- Species list
+
+```{r species,echo=TRUE,eval=FALSE}
+### Caution: Do not include columns 'SFA.ID.ppt' & 'SFA_life_history_table'
+species <- readWorksheet(DDD,"SPECIES")[,1:17]
+
+### Save in temp to allow for insertion in the database
+write.table(species,file='/tmp/species.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.species
+send.references.tables.species <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.species FROM '/tmp/species.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 36- Stomach fullness classification
+
+```{r stomach_fullness,echo=TRUE,eval=FALSE}
+stomach_fullness <- readWorksheet(DDD,"STOMACH_FULLNESS")
+
+### Save in temp to allow for insertion in the database
+write.table(stomach_fullness,file='/tmp/stomach_fullness.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.stomach_fullness
+send.references.tables.stomach_fullness <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.stomach_fullness FROM '/tmp/stomach_fullness.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 37- Storage modes
+
+```{r storage_mode,echo=TRUE,eval=FALSE}
+storage_mode <- readWorksheet(DDD,"STORAGE_MODE")
+
+### Save in temp to allow for insertion in the database
+write.table(storage_mode,file='/tmp/storage_mode.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.storage_mode
+send.references.tables.storage_mode <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.storage_mode FROM '/tmp/storage_mode.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 38- Tissues
+
+```{r tissue,echo=TRUE,eval=FALSE}
+tissue <- readWorksheet(DDD,"TISSUE")
+
+### Save in temp to allow for insertion in the database
+write.table(tissue,file='/tmp/tissue.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.tissue
+send.references.tables.tissue <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.tissue FROM '/tmp/tissue.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 39- Vessels
+
+```{r vessel,echo=TRUE,eval=FALSE}
+vessel <- readWorksheet(DDD,"VESSEL")
+
+### Save in temp to allow for insertion in the database
+write.table(vessel,file='/tmp/vessel.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.vessel
+send.references.tables.vessel <- dbSendQuery(con_emotion3_local,paste0("COPY references_tables.vessel FROM '/tmp/vessel.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
+
+# 40- Vessel storage classification
+
+```{r vessel_storage,echo=TRUE,eval=FALSE}
+### Extract spreadsheet
+vessel_storage <- readWorksheet(DDD,"VESSEL_STORAGE")
+
+### Save in temp to allow for insertion in the database
+write.table(vessel_storage,file='/tmp/vessel_storage.csv',row.names = FALSE,sep="\t",na = '')
+
+### INSERT references_tables.vessel_storage
+send.references.tables.vessel_storage <- dbSendQuery(con_emotion3_local, 
+paste0("COPY references_tables.vessel_storage FROM '/tmp/vessel_storage.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```
