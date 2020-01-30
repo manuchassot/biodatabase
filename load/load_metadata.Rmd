@@ -27,27 +27,27 @@ lubripack('RPostgreSQL','knitr','lubridate','openxlsx','data.table',silent = FAL
 Sys.setlocale("LC_TIME", "en_US.UTF-8")
 
 ### PDF/DOC document parameters
-knitr::opts_chunk$set(echo = FALSE,tidy.opts=list(width.cutoff=80),tidy=TRUE,size='footnotesize',fig.width=4.5,fig.height=4.5, fig.align = 'center')
+knitr::opts_chunk$set(echo = FALSE,tidy.opts=list(width.cutoff=90),tidy=TRUE,size='footnotesize',fig.width=4.5,fig.height=4.5, fig.align = 'center')
 ```
 
-# Connect to the database
+# 1- Connect to the database
 
 ```{r database_connection,echo=TRUE,eval=TRUE}
 drv <- dbDriver("PostgreSQL")
 con_emotion3_local <-  dbConnect(drv,user="postgres",dbname="emotion3",host="localhost")
 ```
 
-# Read metadata from spreadsheet
+# 2- Read metadata from spreadsheet
 
-```{r read_ddd,echo=TRUE,eval=TRUE}
+```{r read_ddd,echo=TRUE,eval=FALSE}
 ddd <- data.table(read.xlsx("../XLS/DDD_Database.xlsx",sheet='DDD'))
 ### Save in temp to allow for insertion in the database
 write.table(ddd,file='/tmp/ddd.csv',row.names = FALSE,sep="\t",na = '')
 ```
 
-# Load data dictionary design
+# 3- Load data dictionary design
 
-## Create or replace metadata table
+## Create or replace the metadata table
 
 ```{r create_metadata_ddd,echo=TRUE,eval=FALSE}
 create.metadata.ddd <- dbSendQuery(con_emotion3_local,paste0("
@@ -66,17 +66,20 @@ ALTER TABLE metadata.ddd OWNER TO \"dbaEmotion\";"
 ,sep=""))
 ```
 
-```{r delete_contents_metadata_ddd,echo=TRUE,eval=TRUE}
+## Delete the contents of the metadata table
+
+```{r delete_contents_metadata_ddd,echo=TRUE,eval=FALSE}
 delete.contents.metadata.ddd <- dbSendQuery(con_emotion3_local,paste0("DELETE FROM metadata.ddd"))
 ```
 
 ## Insert into metadata table 
 
-```{r load_metadata.ddd,echo=TRUE,eval=TRUE}
-insert.metadata.ddd <- dbSendQuery(con_emotion3_local,paste0("COPY metadata.ddd FROM '/tmp/ddd.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+```{r load_metadata.ddd,echo=TRUE,eval=FALSE}
+insert.metadata.ddd <-
+dbSendQuery(con_emotion3_local,paste0("COPY metadata.ddd FROM '/tmp/ddd.csv' WITH DELIMITER E'\\t' CSV HEADER"))
 ```
 
-# Create analysis tracers details
+# 4- Create analysis tracers details
 
 ```{r create_metadata_analysis_tracers_details,echo=TRUE,eval=FALSE}
 create.metadata.analysis.tracers.details <- dbSendQuery(con_emotion3_local,paste0("
@@ -92,11 +95,16 @@ WHERE variable_type = 1
 ORDER BY analysis_type,tracer_name;",sep=""))
 ```
 
-<!-- ### Save the metadata csv file -->
-<!-- ### Command terminal -->
-<!-- ## \copy (SELECT * FROM metadata.analysis_tracers_details) TO '/home/stagiaire/Emotion3/CSV/metadata/analysis_tracers_details.csv' WITH DELIMITER E'\t' CSV HEADER -->
+```{sql , echo=TRUE, eval=FALSE}
+-- Connect to the database with psql
+psql -d emotion3 -h localhost -U postgres
+-- Save the metadata csv file
+\copy (SELECT * FROM metadata.analysis_tracers_details) TO
+'/home/stagiaire/Emotion3/CSV/metadata/analysis_tracers_details.csv' 
+WITH DELIMITER E'\t' CSV HEADER
+```
 
-# Create fish measurements details
+# 5- Create fish measurements details
 
 ```{r create_metadata_analysis_fish_measure_details,echo=TRUE,eval=FALSE}
 create.metadata.fish.measures.details <- dbSendQuery(con_emotion3_local,paste0("
@@ -110,7 +118,11 @@ WHERE variable_type = 2
 ORDER BY measure_name;",sep=""))
 ```
 
-<!-- ### Save the metadata csv file -->
-<!-- ### Command terminal -->
-<!-- ## \copy (SELECT * FROM metadata.fish_measures_details) TO '/home/stagiaire/Emotion3/CSV/metadata/fish_measures_details.csv' WITH DELIMITER E'\t' CSV HEADER -->
-
+```{sql , echo=TRUE, eval=FALSE}
+-- Connect to the database with psql
+psql -d emotion3 -h localhost -U postgres
+-- Save the metadata csv file
+\copy (SELECT * FROM metadata.fish_measures_details)
+TO '/home/stagiaire/Emotion3/CSV/metadata/fish_measures_details.csv'
+  WITH DELIMITER E'\t' CSV HEADER -->
+```

@@ -10,11 +10,9 @@ setwd(wd)
 # Swith to English for date format in title
 Sys.setlocale("LC_TIME", 'en_GB.UTF-8')
 
-# Step 1: Load metadata ----
-
 ### PDF
 render('./load_metadata.Rmd',output_format = pdf_document(highlight = "espresso",keep_tex = FALSE))
 
 ### HTML PRETTY
-render('./load_metadata.Rmd',output_format = html_pretty(theme="leonids",toc=TRUE))
+#render('./load_metadata.Rmd',output_format = html_pretty(theme="leonids",toc=TRUE))
 
