@@ -1,6 +1,6 @@
 -- Fish collected with samples and within the Seychelles waters
 -- Local Emotion3 database: psql -d emotion3 -h localhost -U postgres
--- Do not include fish collected as part of the DCF program at the cannery
+-- Do not include historical fish collected as part of the IRD/DCR/DCF programs at the IOT Ltd. cannery
 -- Filters: fish.project NOT IN ('BIOMCO','BIOMCO1','PATUDO','IOT-stomachs') AND extract(year FROM fish.fish_sampling_date)>2008
 -- Seychelles EEZ: WHERE eez.iso_3digit LIKE 'SYC'
 -- Use of geo_data.eez_land_v2_201410 so that the polygon of the EEZ includes the whole area and islands
@@ -93,8 +93,7 @@ LEFT JOIN references_tables.fishing_mode st ON (fe.fishing_mode=st.l_tban)
 --WHERE eez.EEZ LIKE 'Seychellois Exclusive Economic Zone'
 INNER JOIN geo_data.eez_land_v2_201410 eez ON ST_Within(ST_SetSRID(fe.geom_calc,4326),eez.geom)
 WHERE eez.iso_3digit LIKE 'SYC'
-AND fish.project NOT IN ('BIOMCO','BIOMCO1','PATUDO','IOT-stomachs')
-AND extract(year FROM fish.fish_sampling_date)>2008
+AND fish.project NOT IN ('BIOM-BET','BIOMCO','BIOMCO1','PATUDO','IOT-stomachs','DCF-IO')
 ),
 
 -- Information from the sample bank

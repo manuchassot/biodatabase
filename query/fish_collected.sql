@@ -1,12 +1,13 @@
 -- Fish collected
 -- Local Emotion3 database: psql -d emotion3 -h localhost -U postgres
 -- Anywhere in the world (i.e. all oceans)
--- Do not include fish collected as part of the DCF program at the cannery
+-- Do not include historical fish collected as part of the IRD/DCR/DCF programs at the IOT Ltd. cannery
 -- Filters: fish.project NOT IN ('BIOMCO','BIOMCO1','PATUDO','IOT-stomachs') AND extract(year FROM fish.fish_sampling_date)>2008
 -- E Chassot
 -- 28/01/2020
 -- Victoria, Seychelles
 
+DROP TABLE IF EXISTS fish_collected;
 CREATE TEMP TABLE fish_collected AS
 
 WITH fish_sampled AS (
@@ -85,8 +86,7 @@ LEFT JOIN references_tables.fishing_mode st ON (fe.fishing_mode=st.l_tban)
 --WHERE eez.EEZ LIKE 'Seychellois Exclusive Economic Zone'
 --INNER JOIN geo_data.eez_land_v2_201410 eez ON ST_Within(ST_SetSRID(fe.geom_calc,4326),eez.geom)
 --WHERE eez.iso_3digit LIKE 'SYC'
-WHERE fish.project NOT IN ('BIOMCO','BIOMCO1','PATUDO','IOT-stomachs')
-AND extract(year FROM fish.fish_sampling_date)>2008
+WHERE fish.project NOT IN ('BIOM-BET','BIOMCO','BIOMCO1','PATUDO','IOT-stomachs','DCF-IO')
 )
 
 SELECT DISTINCT
