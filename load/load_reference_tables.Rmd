@@ -337,10 +337,6 @@ send.references.tables.ocean <- dbSendQuery(con_emotion3_local,paste0("COPY refe
 ### Extract spreadsheet 
 operator <- readWorksheet(DDD,"OPERATOR")
 
-### Remove second affiliation
-### Temporary: Each affiliation should be added in the table
-operator <- operator[,c('l_operator','Affiliation1')]
-
 ### Save in temp to allow for insertion in the database
 write.table(operator,file='/tmp/operator.csv',row.names = FALSE,sep="\t",na = '')
 
@@ -539,6 +535,6 @@ vessel_storage <- readWorksheet(DDD,"VESSEL_STORAGE")
 write.table(vessel_storage,file='/tmp/vessel_storage.csv',row.names = FALSE,sep="\t",na = '')
 
 ### INSERT references_tables.vessel_storage
-send.references.tables.vessel_storage <- dbSendQuery(con_emotion3_local, 
-paste0("COPY references_tables.vessel_storage FROM '/tmp/vessel_storage.csv' WITH DELIMITER E'\\t' CSV HEADER"))
+send.references.tables.vessel_storage <- dbSendQuery(con_emotion3_local,
+                                                     paste0("COPY references_tables.vessel_storage FROM '/tmp/vessel_storage.csv' WITH DELIMITER E'\\t' CSV HEADER"))
 ```
