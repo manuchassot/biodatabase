@@ -2,6 +2,12 @@
 title: 'BIODATABASE: Loading documentation'
 author: "Manu Chassot"
 date: '`r format(Sys.time(), "%d %B %Y")`'
+#mainfont: Calibri Light
+#monofont: Arial
+fontsize: 12 pt
+header-includes: 
+  - \usepackage{xcolor}
+  - \sloppy
 output: pdf_document
 classoption: landscape
 ---
@@ -30,7 +36,8 @@ lubripack('RPostgreSQL','knitr','lubridate','XLConnect','data.table','openxlsx',
 
 ```{r document_parameters,echo=FALSE,results='hide',eval=TRUE}
 ### English
-Sys.setlocale("LC_TIME", "en_US.UTF-8")
+Sys.setlocale("LC_MESSAGES", 'en_GB.UTF-8')
+#Sys.setlocale("LC_TIME", "en_US.UTF-8")
 
 ### PDF/DOC document parameters
 knitr::opts_chunk$set(echo = FALSE,tidy.opts=list(width.cutoff=80),tidy=TRUE,size='footnotesize',fig.width=4.5,fig.height=4.5, fig.align = 'center')
@@ -42,17 +49,17 @@ knitr::opts_chunk$set(echo = FALSE,tidy.opts=list(width.cutoff=80),tidy=TRUE,siz
 ddd <- read.xlsx("../XLS/DDD_Database.xlsx",sheet='DDD')
 ```
 
-The spreadsheet 'DDD' of the XLSX file DDD_Database.xlsx is the Data Dictionary Design of the database. The 'DDD' includes the following fields: `r paste(names(ddd),collapse = ', ')`. It contains the description ('comment') of `r length(unique(ddd$variable))` variables linked to `r length(unique(ddd$entity))` distinct entities. The column 'basic_checks' refers to the reference tables of the database (section [Reference tables]).
+The CSV file $\color{blue}{ddd.csv}$ exported from the spreadsheet 'DDD' of the XLSX file DDD_Database.xlsx is the Data Dictionary Design of the database. The data set includes the following fields: `r paste(names(ddd),collapse = ', ')`. It contains the description ('comment') of `r length(unique(ddd$variable))` variables linked to `r length(unique(ddd$entity))` distinct entities. The column 'basic_checks' refers to the reference tables of the database (section [Reference tables]).
 
-The column 'tracer' takes the value 1 for the variables corresponding to `r nrow(ddd[!is.na(ddd$tracer) & ddd$tracer==1,])` quantitative ecological tracers (e.g. isotopic ratio $\delta$^15^N). It takes the value 2 for the `r nrow(ddd[!is.na(ddd$tracer) & ddd$tracer==2,])` morphomometric measurements of the fish (e.g. fork length) and fish organs (e.g. liver weight). The column 'tracer' is used during the data loading process to generate the tables metadata.analysis_tracers_details and metadata.fish_measures_details, respectively. These two tables are exported as .CSV files and called by the R codes melt_analysis_tracers.R and melt_fish_measurements.R which melt the pivot data prior to insertion in the database. The melted data sets melting_tracers.txt and melting_fish_measurements.txt are then inserted into the tables analysis_tables.analysis_measures and public.fish_measures, respectively.
+The column 'tracer' takes the value 1 for the variables corresponding to `r nrow(ddd[!is.na(ddd$tracer) & ddd$tracer==1,])` quantitative ecological tracers (e.g. isotopic ratio $\delta$^15^N). It takes the value 2 for the `r nrow(ddd[!is.na(ddd$tracer) & ddd$tracer==2,])` morphomometric measurements of the fish (e.g. fork length) and fish organs (e.g. liver weight). The column 'tracer' is used during the data loading process to generate the tables metadata.analysis_tracers_details and metadata.fish_measures_details, respectively. These two tables are exported as .CSV files and called by the R scripts melt_analysis_tracers.R and melt_fish_measurements.R which melt the pivot data prior to insertion in the database. The melted data sets melting_tracers.txt and melting_fish_measurements.txt are then inserted into the tables analysis_tables.analysis_measures and public.fish_measures, respectively (section [Analysis]).
 
 The column views_level can be used to filter the `r nrow(ddd[!is.na(ddd$views_level) & ddd$views_level==1,])` main ecological tracers of interest (value = 1) to extract from the database vs. the `r nrow(ddd[!is.na(ddd$views_level) & ddd$views_level==0,])` that are not of direct interest to the user but were required for some computation of tracers, e.g. extraction_vial_empty_mass.
 
-The insertion of the DDD contents into the table metadata.ddd and creation of the tables metadata.analysis_tracers_details and metadata.fish_measures_details are described in load_metadata.Rmd.
+The insertion of the DDD contents into the table metadata.ddd and creation of the tables metadata.analysis_tracers_details and metadata.fish_measures_details are described in **load_metadata.Rmd**.
 
 # Reference tables
 
-The XLSX file DDD_Database.xlsx includes 39 tables that provide information on the different metadata and data sets: `r paste(sort(unique(ddd$basic_checks)),collapse=', ')`. The insertion of the reference tables into the schema references_tables of the database, including the creation of an additional table ANALYSIS_GROUPS, is described in load_reference_tables.Rmd.
+The XLSX file DDD_Database.xlsx includes 39 tables that provide information on the different metadata and data sets: `r paste(sort(unique(ddd$basic_checks)),collapse=', ')`. The insertion of the reference tables into the schema references_tables of the database, including the creation of an additional table ANALYSIS_GROUPS, is described in **load_reference_tables.Rmd**.
 
 # Fish
 
@@ -63,9 +70,9 @@ fish <- data.table::fread('../CSV/fish/Data_Sampling_fish.csv')
 fish[, fish_sampling_date := as.Date(fish_sampling_date,tz='SCT')]
 ```
 
-The 'fish' data set includes information on the fish collected (e.g. species, sex) and is composed of two distinct data sets: (1) csv_fish_iot_nb.csv and (2) Data_Sampling_fish.csv. The first data set includes `r prettyNum(length(unique(fish_iot$fish_identifier)),big.mark=',')` fish collected at the cannery IOT Ltd. and the SFA lab between `r min(fish_iot$fish_sampling_date,na.rm=T)` and `r max(fish_iot$fish_sampling_date,na.rm=T)` through historical IRD-SFA projects. The second data set is a CSV export from the working XLSX file Data_Sampling.xlsx that includes `r prettyNum(length(unique(fish$fish_identifier)),big.mark=',')` fish collected through different projects conducted in the Seychelles and other oceans in collaboration with IRD and SFA partners between `r min(fish$fish_sampling_date,na.rm=T)` and `r max(fish$fish_sampling_date,na.rm=T)`.
+The 'fish' data set includes information on the fish collected (e.g. species, sex) and is composed of two distinct data sets: (1) $\color{blue}{csv\_fish\_iot\_nb.csv}$ and (2) $\color{blue}{Data\_Sampling\_fish.csv}$. The first data set includes `r prettyNum(length(unique(fish_iot$fish_identifier)),big.mark=',')` fish collected at the cannery IOT Ltd. and the SFA lab between `r min(fish_iot$fish_sampling_date,na.rm=T)` and `r max(fish_iot$fish_sampling_date,na.rm=T)` through historical IRD-SFA projects. The second data set is a CSV export from the working XLSX file Data_Sampling.xlsx that includes `r prettyNum(length(unique(fish$fish_identifier)),big.mark=',')` fish collected through different projects conducted in the Seychelles and other oceans in collaboration with IRD and SFA partners between `r min(fish$fish_sampling_date,na.rm=T)` and `r max(fish$fish_sampling_date,na.rm=T)`.
 
-The loading of the data in the database is performed with Talend and consists of three steps: (i) the merging of the two data sets into a CSV file fish_emotion3.csv, (ii) the insertion of some fields into the table public.fish (Job Load_fish), and (iii) the insertion of the variables described in the table metadata.fish_measures_details into the table public.fish_measures after melting the pivot data with the R code melt_fish_measurements.R (Job Load_fish_measures).
+The loading of the data in the database is performed with Talend and consists of three steps: (i) the merging of the two data sets into a CSV file $\color{blue}{fish\_emotion3.csv}$, (ii) the insertion of some fields into the table public.fish (Job $\color{red}{Load\_fish}$), and (iii) the insertion of the variables described in the table metadata.fish_measures_details into the table public.fish_measures after melting the pivot data with the R code melt_fish_measurements.R (Job $\color{red}{Load\_fish\_measures}$).
 
 # Fishing environment
 
@@ -78,7 +85,7 @@ fishing_environment_iot[, fishing_date_max := as.Date(fishing_date_max,tz='SCT')
 fishing_environment <- data.table::fread('../CSV/fishing_environment/Data_Sampling_environment.csv')
 ```
 
-The 'fishing_environment' data set includes the information about the origin and conditions of fish collection (e.g. fishing gear, location, date) and is composed of two distinct data sets: (1) csv_fishing_env_iot.csv and (2) Data_Sampling_environment.csv. The first data set includes the information retrieved from purse seiners' logbooks and well plans for the fish historically collected at the Seychelles cannery while the second data set includes different kinds of information for all the fish available in the CSV file Data_Sampling_fish.csv (section [Fish]).
+The 'fishing_environment' data set includes the information about the origin and conditions of fish collection (e.g. fishing gear, location, date) and is composed of two distinct data sets: (1) $\color{blue}{csv\_fishing\_env\_iot.csv}$ and (2) $\color{blue}{Data\_Sampling\_environment.csv}$. The first data set includes the information retrieved from purse seiners' logbooks and well plans for the fish historically collected at the Seychelles cannery while the second data set includes different kinds of information for all the fish available in the CSV file $\color{blue}{Data\_Sampling\_fish.csv}$ (section [Fish]).
 
 For the first data set, a WKT field 'geom_text' was used to aggregate and store the spatial information on the origin of the fish in a textual format. Information on fish origin comes from the location of the fishing operations conducted throughout a purse seiner trip or reported for a brine well where the fish was stored. Different geographic objects were used according to the resolution of information available:
 
@@ -89,15 +96,21 @@ For the first data set, a WKT field 'geom_text' was used to aggregate and store 
 
 The second data set includes the raw information on fish origin when available, i.e. the geographic position of the fish (e.g. sampling onboard the vessel) or of the fishing operation reported in the purse seiner's well plan. For most of the fish caught with longline, no accurate location of the fishing operations was made available and the extreme positions of the fishing trip were used to define a rectangle polygon of fish origin. For the fish without fishing positions, some qualitative information gathered at the time of sampling was included in the field 'remarks_fishing' and the Exclusive Economic Zone (EEZ) was indicated when possible.
 
-The loading of the data in the database is performed with Talend and consists of three steps: (i) the merging of the two data sets into a CSV file fishing_env_emotion3.csv, (ii) the removal of duplicates from the combined fishing environment data set and insertion into the table public.fishing_environment, (iii) the loading of the table mapping the unique fish identifier with the unique identifier of fishing environment into the table public.fish_caught (Job Load_fishing_env). The trigger update_geom_fishing_env updates the geometry field 'geom' from 'geom_text' and updates 'geom_uncertainty' which aims to reflect the uncertainty associated with the geographic information available on fish origin.
+The loading of the data in the database is performed with Talend and consists of three steps: (i) the merging of the two data sets into a CSV file $\color{blue}{fishing\_env\_emotion3.csv}$, (ii) the removal of duplicates from the combined fishing environment data set and insertion into the table public.fishing_environment, (iii) the loading of the table mapping the unique fish identifier with the unique identifier of fishing environment into the table public.fish_caught (Job $\color{red}{Load\_fishing\_env}$). The trigger update_geom_fishing_env updates the geometry field 'geom' from 'geom_text' and updates 'geom_uncertainty' which aims to reflect the uncertainty associated with the geographic information available on fish origin.
 
 # Sample bank
 
-Talend Job (load_sample_bank):
+```{r sample_bank,echo=FALSE,eval=TRUE}
+data_prep <- data.table::fread("../CSV/data_prep/Data_Prep.csv")
+data_prep[, storage_date := as.Date(storage_date,tz='SCT')]
+data_prep[, drying_date := as.Date(drying_date,tz='SCT')]
+```
 
-* public.sample_bank
-* public.sample_dryed_bank: will be loaded from the new file 'table Data_moisture.csv'
-* public.sample_grinded_bank to remove from the database
+The sample bank data set contains the information on the preparation and pre-processing of the samples (e.g. drying, storage) and is a CSV export ($\color{blue}{Data\_Prep.csv}$) from the XLSX file Data_Prep.xlsx. The data set is currently loaded into four tables in the database with Talend: (1) public.samples_origin, (2) public.sample_bank, (3) public.sample_grinded_bank and (4) public.sample_dryed_bank (Job $\color{red}{load\_sample\_bank}$).
+
+The part of the data set that establishes the link between the fish and the samples is loaded into the table public.samples_origin[^1]. The table public.sample_bank contains the information common to all samples. Information on grinding has been shown to greatly vary between analyses and the general table public.sample_grinded_bank should be removed from the database. The information on grinding will be included in the tables describing some of the analyses when available. Similarly, the table public.sample_dryed_bank should be removed from the analysis. Information on water contents derived from the sample drying will be collated and included in a new CSV file $\color{blue}{(Data\_moisture.csv}$), that will be loaded as a new table analysis_tables.data_moisture.
+
+[^1]: {The field table_source is not used and should be removed from the table}
 
 # Analysis
 
@@ -105,22 +118,21 @@ Talend Job (load_sample_bank):
 list_analysis_files <- list.files('/home/stagiaire/Emotion3/CSV/analysis/',pattern = '.csv')
 ```
 
-Talend Jobs (load_general_columns, load_analysis_infos, load_melting_data):
+The `r length(list_analysis_files)` CSV files exported from the XLSX working files to load into different tables of the database are the following: `r paste(list_analysis_files,collapse=', ')`. The general columns describing the process of the analyses (e.g. type, lab, operator) are currently loaded into the table analysis_tables.analysis with Talend (Job $\color{red}{load\_general\_columns}$).
 
-`r paste(list_analysis_files,collapse=', ')`
+Technical details about the analyses (e.g. concentration unit, materials) are loaded into several tracer-specific tables of the schema analysis_tables with Talend (Job $\color{red}{load\_analysis\_infos}$).
+
+All the quantitative results of the analyses identified by the list of `r nrow(ddd[!is.na(ddd$tracer) & ddd$tracer==1,])` tracers available in the table metadata.analysis_tracers_details (section [Metadata]) are loaded into the table analysis_tables.analysis_measures with Talend after having melted the pivot data with the R script melting_tracers.txt (Job $\color{red}{load\_melting\_data}$).
 
 # Spatial layers
 
-* eez
-* eez_boundaries
-* eez_iho_union_v2
-* eez_land_v2_201410 
-* fao_fishing_areas
-* mahe_plateau
-* rfmos
-* world_borders
- 
+The 14 following spatial layers are currently included in the schema geo_data of the database: (1) countries, (2) cwp_grid, (3) eez, (4) eez_boundaries, (5) eez_iho_union_v2, (6) eez_land_v2_201410, (7) fao_fishing_areas, (8) mahe_plateau, (9) rfmos, (10) seamounts, (11) seamounts_wessel, (12) world_borders, (13) zet, (14) zet_hors_continents. The spatial layers are used for three reasons:
 
+1. To update the geometry field public.fishing_environment.geom from the WKT field public.fishing_environment.geom_text with the trigger 'update_geom_fishing_env' of the table public.fishing_environment. This concerns the historical data collected in the Seychelles available in the CSV file $\color{blue}{csv\_fishing\_env\_iot.csv}$ (section [Fishing environment]). The trigger calls the layer geo_data.rfmos but should be reviewed as it generates a convexhull from the MULTIPOINTS which can result in wrong geometries;
+
+2. To update the geometry field public.fishing_environment.geom from the field public.fishing_environment.r_fishing (remarks) with the SQL script update_fishing_environment_when_missing_based_on_remarks_fishing.sql. This occurs when no accurate geographic information was available on the fish origin and keywords (i.e. Ivory Coast EEZ, Mahe Plateau, SYC EEZ, WKT_IO, WKT_AO) were included in the field remarks_fishing of the CSV file $\color{blue}{Data\_Sampling\_environment.csv}$. The SQL script calls the layers geo_data.eez and geo_data.rfmos;
+
+3. To extract the data from the database, e.g. within a given exclusive economic zone (EEZ) or within the vicinity of a seamount. It is noteorthy that the layer geo_data.eez_land_v2_201410 is mostly used for the extractions within the Seychelles EEZ as it does not include any part of land (i.e. the islands) and enables to include all the samples collected within the Seychelles waters, i.e. when samples are very coastal and could be apparently come from the land due to the low resolution of the coasts.
 
 
 
