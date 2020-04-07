@@ -14,6 +14,14 @@ CREATE SCHEMA IF NOT EXISTS codelists;
 CREATE SCHEMA IF NOT EXISTS metadata;
 CREATE SCHEMA IF NOT EXISTS import;
 
+GRANT USAGE ON SCHEMA core TO public;
+GRANT USAGE ON SCHEMA analysis TO public;
+GRANT USAGE ON SCHEMA codelists TO public;
+GRANT USAGE ON SCHEMA metadata TO public;
+-- Schema import will only be used by geodb_admin.
+-- Hence, there is no need for a USAGE privilege.
+
+
 SET SEARCH_PATH TO codelists, public;
 
 CREATE TABLE cl_species
