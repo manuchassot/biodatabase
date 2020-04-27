@@ -41,14 +41,6 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA spatial GRANT SELECT, INSERT, UPDATE, DELETE 
 ALTER DEFAULT PRIVILEGES IN SCHEMA spatial GRANT USAGE ON SEQUENCES TO sfa_update;
 ALTER DEFAULT PRIVILEGES IN SCHEMA spatial GRANT SELECT ON TABLES TO sfa_view;
 
-GRANT USAGE ON SCHEMA core TO public;
-GRANT USAGE ON SCHEMA analysis TO public;
-GRANT USAGE ON SCHEMA codelists TO public;
-GRANT USAGE ON SCHEMA metadata TO public;
--- Schema import will only be used by geodb_admin.
--- Hence, there is no need for a USAGE privilege.
-
-
 SET SEARCH_PATH TO codelists, public;
 
 CREATE TABLE cl_species
