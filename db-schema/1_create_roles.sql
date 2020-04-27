@@ -11,4 +11,5 @@ CREATE ROLE sfa_admin;
 
 -- Create a standard user role and make it member of two groups
 CREATE ROLE echassot LOGIN;
+ALTER ROLE echassot password 'echassot';
 GRANT sfa_update, sfa_admin TO echassot;
