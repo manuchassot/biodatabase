@@ -11,7 +11,7 @@ DROP SCHEMA IF EXISTS spatial CASCADE;
 
 CREATE SCHEMA import;
 
--- Define default privileges on schemas
+-- Define default privileges on schemas (requires PostgreSQL 10+)
 ALTER DEFAULT PRIVILEGES GRANT USAGE ON SCHEMAS TO sfa_view, sfa_update, sfa_admin;
 
 CREATE SCHEMA core;
@@ -104,6 +104,12 @@ CREATE TABLE cl_analysis_mode
 	desc_analysis_mode text UNIQUE
 );
 
+CREATE TABLE cl_otolith_number
+(
+	otolith_number int primary key,
+	desc_otolith_number_en text UNIQUE
+);
+
 CREATE TABLE cl_analysis_replicate
 (
 	analysis_replicate varchar(5) primary key,
@@ -127,8 +133,9 @@ CREATE TABLE cl_analysis
 
 CREATE TABLE cl_atresia
 (
-	atretic_stage integer primary key,
-	desc_atretic_stage text UNIQUE
+	code_atretic_stage integer primary key,
+	atretic_stage_en VARCHAR(50) UNIQUE,
+	desc_atretic_stage_en text UNIQUE
 );
 
 CREATE TABLE cl_reference_material
@@ -149,6 +156,19 @@ CREATE TABLE cl_drying_mode
 (
 	drying_mode varchar(15) primary key,
 	desc_drying_mode text UNIQUE
+);
+
+CREATE TABLE cl_fish_face
+(
+	fish_face varchar(15) primary key,
+	desc_fish_face_en text UNIQUE
+);
+
+CREATE TABLE cl_well_position
+(
+	well_position varchar(15) primary key,
+	well_position_en text UNIQUE,
+    well_position_fr text UNIQUE
 );
 
 CREATE TABLE cl_extraction_mode
@@ -220,7 +240,7 @@ CREATE TABLE cl_operator
 	affiliation2 varchar(100)
 );
 
-CREATE TABLE cl_otolith
+CREATE TABLE cl_otolith_measurement
 (
 	otolith_measurement_type varchar(25) primary key,
 	desc_otolith_measurement_type text UNIQUE
@@ -298,9 +318,8 @@ CREATE TABLE cl_tissue
 
 CREATE TABLE cl_otolith_breaking
 (
-	code int PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+	otolith_breaking VARCHAR(50) PRIMARY KEY,
+    desc_otolith_breaking_en varchar(255) UNIQUE
 );
 
 CREATE TABLE cl_vessel
@@ -327,11 +346,11 @@ CREATE TABLE cl_vessel_storage
 	desc_vessel_storage_mode_en varchar(255) UNIQUE
 );
 
-CREATE TABLE cl_sampling_status
+CREATE TABLE cl_organism_sampling_status
 (
-    code varchar(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+    organism_sampling_status varchar(50) PRIMARY KEY,
+    desc_organism_sampling_status_en varchar(255) UNIQUE,
+    desc_organism_sampling_status_fr varchar(255) UNIQUE
 );
 
 CREATE TABLE cl_mineral
@@ -362,86 +381,58 @@ CREATE TABLE cl_organic_contaminant
 
 CREATE TABLE cl_measure_unit
 (
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
-);
-
-CREATE TABLE cl_atretic_oocyte_stage
-(
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+    measure_unit VARCHAR(50) PRIMARY KEY,
+    desc_measure_unit_en varchar(255) UNIQUE,
+    desc_measure_variable_en varchar(255)
 );
 
 CREATE TABLE cl_otolith_part
 (
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+    otolith_part VARCHAR(50) PRIMARY KEY,
+    desc_otolith_part_en varchar(255) UNIQUE,
+    desc_otolith_part_fr varchar(255) UNIQUE
 );
 
 CREATE TABLE cl_reading_method
 (
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+    reading_method VARCHAR(50) PRIMARY KEY,
+    desc_reading_method_en varchar(255) UNIQUE,
+    desc_reading_method_fr varchar(255) UNIQUE
 );
 
 CREATE TABLE cl_increment_type
 (
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+    increment_type VARCHAR(50) PRIMARY KEY,
+    desc_increment_type_en varchar(255) UNIQUE,
+    desc_increment_type_fr varchar(255) UNIQUE
 );
 
 CREATE TABLE cl_otolith_section_type
 (
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+    otolith_section_type VARCHAR(50) PRIMARY KEY,
+    desc_otolith_section_type_en varchar(255) UNIQUE,
+    desc_otolith_section_type_fr varchar(255) UNIQUE
 );
 
 CREATE TABLE cl_fractionation_mode
 (
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+    fractionation_mode VARCHAR(50) PRIMARY KEY,
+    desc_fractionation_mode_en varchar(255) UNIQUE,
+    desc_fractionation_mode_fr varchar(255) UNIQUE
 );
 
 CREATE TABLE cl_fractionation_type
 (
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
-);
-
-CREATE TABLE cl_lipid_remov_mode
-(
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
-);
-
-CREATE TABLE cl_urea_remov_mode
-(
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
-);
-
-CREATE TABLE cl_carbonate_remov_mode
-(
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+    fractionation_type VARCHAR(50) PRIMARY KEY,
+    desc_fractionation_type_en varchar(255) UNIQUE,
+    desc_fractionation_type_fr varchar(255) UNIQUE
 );
 
 CREATE TABLE cl_fatm_mode
 (
-    code VARCHAR(50) PRIMARY KEY,
-    description_en varchar(255) UNIQUE,
-    description_fr varchar(255) UNIQUE
+    fatmeter_mode VARCHAR(50) PRIMARY KEY,
+    desc_fatmeter_mode_en varchar(255) UNIQUE,
+    desc_fatmeter_mode_fr varchar(255) UNIQUE
 );
 
 SET SEARCH_PATH TO metadata, public;
@@ -481,7 +472,7 @@ CREATE TABLE co_sampling_environment
     capture_time_end timetz,
     activityNumber INT,
     sea_surface_temperature_deg_celcius FLOAT,
-    well_position VARCHAR(255),
+    well_position VARCHAR(15) REFERENCES cl_well_position ON UPDATE CASCADE ON DELETE RESTRICT,
     well_number VARCHAR(255),
     ocean_code VARCHAR(10) REFERENCES cl_ocean ON UPDATE CASCADE ON DELETE RESTRICT,
     gear_code VARCHAR(50) REFERENCES cl_gear ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -506,7 +497,7 @@ CREATE TABLE co_sampling_organism
 (
     id varchar(20) PRIMARY KEY,
     sampling_platform VARCHAR(50) REFERENCES cl_sampling_platform ON UPDATE CASCADE ON DELETE RESTRICT,
-    sampling_status varchar(50) REFERENCES cl_sampling_status ON UPDATE CASCADE ON DELETE RESTRICT,
+    sampling_status varchar(50) REFERENCES cl_organism_sampling_status ON UPDATE CASCADE ON DELETE RESTRICT,
     sampling_date date,
     sampling_remarks text,
     first_tag_number varchar(10),
@@ -519,8 +510,8 @@ CREATE TABLE co_sampling_organism
     tissue_weight_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
     macro_maturity_stage int REFERENCES cl_macro_maturity ON UPDATE CASCADE ON DELETE RESTRICT,
     sex varchar(50) REFERENCES cl_sex ON UPDATE CASCADE ON DELETE RESTRICT,
-    otolith_count int,
-    otolith_breaking int REFERENCES cl_otolith_breaking ON UPDATE CASCADE ON DELETE RESTRICT,
+    otolith_count int REFERENCES cl_otolith_number ON UPDATE CASCADE ON DELETE RESTRICT,
+    otolith_breaking VARCHAR(50) REFERENCES cl_otolith_breaking ON UPDATE CASCADE ON DELETE RESTRICT,
     sampling_environment varchar(20) REFERENCES co_sampling_environment ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
@@ -616,7 +607,7 @@ CREATE TABLE an_otolith_morphometry
 (
     analysis_id varchar(20) PRIMARY KEY REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
     part varchar(50) REFERENCES cl_otolith_part ON UPDATE CASCADE ON DELETE RESTRICT,
-    measurement_type varchar(25) REFERENCES cl_otolith ON UPDATE CASCADE ON DELETE RESTRICT,
+    measurement_type varchar(25) REFERENCES cl_otolith_measurement ON UPDATE CASCADE ON DELETE RESTRICT,
     measurement_value float,
     measurement_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
     reading_method varchar(50) REFERENCES cl_reading_method ON UPDATE CASCADE ON DELETE RESTRICT
@@ -659,7 +650,7 @@ CREATE TABLE an_reproduction_maturity
     FOREIGN KEY(micro_sex, micro_maturity_stage, mago_substage, mago_stage, repro_phase, repro_subphase)
         REFERENCES cl_micro_maturity(micro_sex, micro_maturity, mago_substage, mago_stage, repro_phase, repro_subphase)
         ON UPDATE CASCADE ON DELETE RESTRICT,
-    atretic_oocyte_stage varchar(50) REFERENCES cl_atretic_oocyte_stage ON UPDATE CASCADE ON DELETE RESTRICT,
+    atretic_oocyte_stage varchar(50), --REFERENCES cl_micro_maturity() ON UPDATE CASCADE ON DELETE RESTRICT,
     atretic_oocyte_percent varchar(10),
     atretic_stage INT REFERENCES cl_atresia ON UPDATE CASCADE ON DELETE RESTRICT
 );
@@ -716,15 +707,15 @@ CREATE TABLE an_stable_isotopes
     si_plate_code varchar(25),
     analysis_sample_mass float,
     analysis_sample_mass_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
-    lipid_remov_mode varchar(50) REFERENCES cl_lipid_remov_mode ON UPDATE CASCADE ON DELETE RESTRICT,
-    urea_remov_mode varchar(50) REFERENCES cl_urea_remov_mode ON UPDATE CASCADE ON DELETE RESTRICT,
-    carbonate_remov_mode varchar(50) REFERENCES cl_carbonate_remov_mode ON UPDATE CASCADE ON DELETE RESTRICT
+    lipid_remov_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT,
+    urea_remov_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT,
+    carbonate_remov_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 CREATE TABLE an_fatmeter
 (
     analysis_id varchar(20) PRIMARY KEY REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
-    fish_face varchar(1) CHECK (fish_face IN ('A', 'B')),
+    fish_face varchar(15) REFERENCES cl_fish_face ON UPDATE CASCADE ON DELETE RESTRICT,
     fatm_mode varchar(50) REFERENCES cl_fatm_mode ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
