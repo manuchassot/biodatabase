@@ -421,11 +421,11 @@ CREATE TABLE cl_fractionation_mode
     desc_fractionation_mode_fr varchar(255) UNIQUE
 );
 
-CREATE TABLE cl_fractionation_type
+CREATE TABLE cl_fraction_type
 (
-    fractionation_type VARCHAR(50) PRIMARY KEY,
-    desc_fractionation_type_en varchar(255) UNIQUE,
-    desc_fractionation_type_fr varchar(255) UNIQUE
+    fraction_type VARCHAR(50) PRIMARY KEY,
+    desc_fraction_type_en varchar(255) UNIQUE,
+    desc_fraction_type_fr varchar(255) UNIQUE
 );
 
 CREATE TABLE cl_fatm_mode
@@ -660,7 +660,7 @@ CREATE TABLE an_fatty_acids
     analysis_id varchar(20) PRIMARY KEY REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
     processing_replicate varchar(7) REFERENCES cl_processing_replicate ON UPDATE CASCADE ON DELETE RESTRICT,
     fractionation_mode varchar(50) REFERENCES cl_fractionation_mode ON UPDATE CASCADE ON DELETE RESTRICT,
-    fractionation_type varchar(50) REFERENCES cl_fractionation_type ON UPDATE CASCADE ON DELETE RESTRICT,
+    fraction_type varchar(50) REFERENCES cl_fraction_type ON UPDATE CASCADE ON DELETE RESTRICT,
     dilution_factor int,
     derivatization_mode varchar(50) REFERENCES cl_derivatization_mode ON UPDATE CASCADE ON DELETE RESTRICT,
     analysis_sample_mass float,
