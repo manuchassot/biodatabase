@@ -435,6 +435,12 @@ CREATE TABLE cl_fatm_mode
     desc_fatmeter_mode_fr varchar(255) UNIQUE
 );
 
+CREATE TABLE cl_atretic_oocyte_stage
+(
+    atretic_oocyte_stage VARCHAR(50) PRIMARY KEY,
+    atretic_oocyte_stage_name varchar(255) UNIQUE
+);
+
 SET SEARCH_PATH TO metadata, public;
 
 CREATE TABLE md_analysis_tracer_detail
@@ -647,12 +653,12 @@ CREATE TABLE an_reproduction_maturity
     ovary_wall decimal,
     repro_phase varchar(50),
     repro_subphase varchar(50),
-    FOREIGN KEY(micro_sex, micro_maturity_stage, mago_substage, mago_stage, repro_phase, repro_subphase)
-        REFERENCES cl_micro_maturity(micro_sex, micro_maturity, mago_substage, mago_stage, repro_phase, repro_subphase)
-        ON UPDATE CASCADE ON DELETE RESTRICT,
-    atretic_oocyte_stage varchar(50), --REFERENCES cl_micro_maturity() ON UPDATE CASCADE ON DELETE RESTRICT,
+    atretic_oocyte_stage varchar(50) REFERENCES cl_atretic_oocyte_stage ON UPDATE CASCADE ON DELETE RESTRICT,
     atretic_oocyte_percent varchar(10),
-    atretic_stage INT REFERENCES cl_atresia ON UPDATE CASCADE ON DELETE RESTRICT
+    atretic_stage INT REFERENCES cl_atresia ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY(micro_sex, micro_maturity_stage, mago_substage, mago_stage, repro_phase, repro_subphase)
+    REFERENCES cl_micro_maturity(micro_sex, micro_maturity, mago_substage, mago_stage, repro_phase, repro_subphase)
+    ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 CREATE TABLE an_fatty_acids
