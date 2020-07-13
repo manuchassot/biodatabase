@@ -1,0 +1,120 @@
+library(openxlsx)
+library(RPostgreSQL)
+
+# DB connection
+createDbConn <- function() {
+
+  drv <- dbDriver("PostgreSQL")
+  con <- dbConnect(drv, dbname="emotion", host="localhost", port=5432, user="geodb_admin")
+  dbGetQuery(con, "SET SEARCH_PATH TO import, public")  
+  return (con)
+}
+
+xlsx2df <- function(dataDir, xlsFileName, sheetName = NULL) {
+  
+  if (is.null(sheetName)) {
+    df <- read.xlsx(paste(dataDir, xlsFileName, sep="/"), skipEmptyCols = FALSE, detectDates = TRUE)
+  } else {
+    df <- read.xlsx(paste(dataDir, xlsFileName, sep="/"), sheet = sheetName, skipEmptyCols = FALSE, detectDates = TRUE) 
+  }
+  return (df)
+}
+
+df2csv <- function(dataDir, subDir, csvFileName, df) {
+  
+  write.table(df, file=paste0(dataDir, subDir, csvFileName), sep="\t", row.names = FALSE, fileEncoding='utf8', na="", quote=FALSE)
+  return (invisible(NULL))
+}
+
+df2pg <- function(dbConn, tableName, df) {
+  
+  if (dbExistsTable(dbConn, tableName)) {
+    dbRemoveTable(dbConn, tableName)
+  }
+  dbWriteTable(dbConn, tableName, df, row.names = FALSE)
+  return (invisible(NULL))
+}
+
+processData <- function(dbConn, dataDir, tableName, csvFileName, xlsFileName, sheetName = NULL) {
+  
+  df = xlsx2df(dataDir, xlsFileName, sheetName)
+  if (startsWith(tableName, "an_")) {
+    subDir <- "/csv/analysis/"
+  } else if (startsWith(tableName, "co_")) {
+    subDir <- "/csv/core/"
+  } else if (startsWith(tableName, "md_")) {
+    subDir <- "/csv/metadata/"
+  }
+  if (!dir.exists(file.path(dataDir, subDir))) {
+    dir.create(file.path(dataDir, subDir))
+  }
+  df2csv(dataDir, subDir, csvFileName, df)
+  df2pg(dbConn, tableName, df)
+}
+
+# Read data directory (containing Excel files) from commandline argument
+# Usage: Rscript analysis_and_main_tables2csv_and_pg.R path_to_excel_files
+args <- commandArgs(trailingOnly = TRUE)
+dataDir=args[1]
+#dataDir <- '~/Downloads/SFA_Excel'
+
+con <- createDbConn()
+
+# 1: Amino acids
+processData(con, dataDir, "an_amino_acids", "Data_AminoAcids.csv", "Data_AminoAcids.xlsx")
+
+# 2: Mercury
+processData(con, dataDir, "an_contaminants_hg", "Data_Contaminants_HG.csv", "Data_Contaminants.xlsx", "hg")
+
+# 3: Metallic tracers (other than mercury)
+processData(con, dataDir, "an_contaminants_tm", "Data_Contaminants_TM.csv", "Data_Contaminants.xlsx", "tm")
+
+# 4: PCBs
+processData(con, dataDir, "an_contaminants_pcbdeoc", "Data_Contaminants_PCBDEOC.csv", "Data_Contaminants.xlsx", "pcb")
+
+# 5: Dioxin
+processData(con, dataDir, "an_contaminants_dioxin", "Data_Contaminants_Dioxin.csv", "Data_Contaminants.xlsx", "dioxin")
+
+# 6: Musk
+processData(con, dataDir, "an_contaminants_musk", "Data_Contaminants_Musk.csv", "Data_Contaminants.xlsx", "musk")
+
+# 7: Fatmeter
+processData(con, dataDir, "an_fatmeter", "Data_Fatmeter.csv", "Data_Fatmeter.xlsx", "fatmeter")
+
+# 8: Fatty qcids
+processData(con, dataDir, "an_fatty_acids", "Data_FattyAcids.csv", "Data_FattyAcids.xlsx", "fattyacids")
+
+# 9: Lipid classes
+processData(con, dataDir, "an_lipid_classes", "Data_LipidClasses.csv", "Data_LipidClasses.xlsx", "lipidclasses")
+
+# 10: Otoliths measurements
+processData(con, dataDir, "an_otolith_morphometrics", "Data_Otoliths_morpho.csv", "Data_Otoliths.xlsx", "otolith_morphometrics")
+
+# 11: Otoliths increments
+processData(con, dataDir, "an_otolith_increment_counts", "Data_Otoliths_counts.csv", "Data_Otoliths.xlsx", "otolith_increment_counts")
+
+# 12: Proteins
+processData(con, dataDir, "an_proteins", "Data_Proteins.csv", "Data_Proteins.xlsx", "proteins")
+
+# 13: Reproduction: maturity stage
+processData(con, dataDir, "an_repro_maturity", "Data_Reproduction_maturity.csv", "Data_Reproduction.xlsx", "maturity")
+
+# 14: Reproduction: fecundity
+processData(con, dataDir, "an_repro_fecundity", "Data_Reproduction_fecundity.csv", "Data_Reproduction.xlsx", "fecundity")
+
+# 15: Stable isotopes
+processData(con, dataDir, "an_stable_isotopes", "Data_StableIsotopes.csv", "Data_StableIsotopes.xlsx")
+
+# 16: Stomach contents
+#processData(con, dataDir, "an_stomach_content", "Data_StomachContents.csv", "Data_StomachContents.xlsx", "stomach_content_category")
+
+# 17: Total lipids
+processData(con, dataDir, "an_total_lipids", "Data_TotalLipids.csv", "Data_TotalLipids.xlsx", "totallipids")
+
+# 18: Main XLSX files
+processData(con, dataDir, "co_data_prep", "Data_Prep.csv", "Data_Prep.xlsx")
+processData(con, dataDir, "co_data_sampling_environment", "Data_Sampling_Environment.csv", "Data_Sampling.xlsx", "environment")
+processData(con, dataDir, "co_data_sampling_organism", "Data_Sampling_Organism.csv", "Data_Sampling.xlsx", "organism")
+processData(con, dataDir, "md_ddd_database", "DDD_Database.csv", "DDD_Database.xlsx", "DDD")
+
+dbDisconnect(con) 

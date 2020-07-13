@@ -46,9 +46,9 @@ SET SEARCH_PATH TO codelists, public;
 CREATE TABLE cl_species
 (
     species_code_fao varchar(50) PRIMARY KEY,
+    species_code_old varchar(50),
 	isscaap varchar(50),
 	taxocode varchar(50),
-	species_code_old varchar(50),
 	scientific_name varchar(100),
 	english_name varchar(100),
 	french_name varchar(100),
@@ -61,7 +61,9 @@ CREATE TABLE cl_species
 	family varchar(100),
 	"order" varchar(100),
 	idguide_nevill_2013 varchar(100),
-	diksyonner_pwason_savy varchar(100)
+	diksyonner_pwason_savy varchar(100),
+	sfa_id_ppt text,
+	sfs_life_history_table text
 );
 
 CREATE TABLE cl_aggregation
@@ -74,11 +76,10 @@ CREATE TABLE cl_aggregation
 CREATE TABLE cl_gear
 (
 	code varchar(50) PRIMARY KEY,
-	l_gear_fao_en varchar(255) UNIQUE,
-	l_gear_fao_fr varchar(255) UNIQUE,
-	l_gear_fao_es varchar(255) UNIQUE,
+	desc_gear_fao_en varchar(255) UNIQUE,
+	desc_gear_fao_fr varchar(255) UNIQUE,
+	desc_gear_fao_es varchar(255) UNIQUE,
 	isscfg_code varchar(255),
-	remarks TEXT,
 	identifier int
 );
 
@@ -228,8 +229,8 @@ CREATE TABLE cl_micro_maturity
 CREATE TABLE cl_ocean
 (
 	code varchar(10) PRIMARY KEY,
+    desc_ocean_code_en varchar(25) UNIQUE,
 	desc_ocean_code_fr varchar(25) UNIQUE,
-	desc_ocean_code_en varchar(25) UNIQUE,
 	desc_ocean_code_es varchar(25) UNIQUE
 );
 
@@ -417,8 +418,8 @@ CREATE TABLE cl_otolith_section_type
 CREATE TABLE cl_fractionation_mode
 (
     fractionation_mode VARCHAR(50) PRIMARY KEY,
-    desc_fractionation_mode_en varchar(255) UNIQUE,
-    desc_fractionation_mode_fr varchar(255) UNIQUE
+    desc_fractionation_mode_en text UNIQUE,
+    desc_fractionation_mode_fr text UNIQUE
 );
 
 CREATE TABLE cl_fraction_type
@@ -455,6 +456,18 @@ CREATE TABLE md_organism_measure_detail
 	measure_description text
 );
 
+CREATE TABLE md_ddd
+(
+    entity varchar(255),
+    variable varchar(255),
+    data_type varchar(255),
+    unit varchar(255),
+    basic_checks varchar(255),
+    comment text,
+    tracer integer,
+    views_level integer
+);
+
 SET SEARCH_PATH TO core, metadata, codelists, public;
 
 CREATE TABLE co_sampling_environment
@@ -470,7 +483,7 @@ CREATE TABLE co_sampling_environment
     capture_time timetz,
     capture_time_start timetz,
     capture_time_end timetz,
-    activityNumber INT,
+    activity_number INT,
     sea_surface_temperature_deg_celcius FLOAT,
     well_position VARCHAR(15) REFERENCES cl_well_position ON UPDATE CASCADE ON DELETE RESTRICT,
     well_number VARCHAR(255),
