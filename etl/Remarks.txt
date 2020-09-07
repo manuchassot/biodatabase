@@ -1,0 +1,4 @@
++ Multiple projects must be separated by '/' e.g. 'GERMON / ARTS-ZD / CONSWO'
++ Ensure that columns supposed to be numeric in Excel do not contain text
++ Write column names in lower case and without dashes (undescores are fine though)
++ Ensure date consistency (ideally using ISO format e.g. 2019-12-24)

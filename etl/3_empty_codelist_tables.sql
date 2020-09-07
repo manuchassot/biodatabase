@@ -6,6 +6,7 @@ DELETE FROM codelists.cl_analysis_mode;
 DELETE FROM codelists.cl_analysis_replicate;
 DELETE FROM codelists.cl_analysis_sample_description;
 DELETE FROM codelists.cl_atresia;
+DELETE FROM codelists.cl_atretic_oocyte_stage;
 DELETE FROM codelists.cl_derivatization_mode;
 DELETE FROM codelists.cl_drying_mode;
 DELETE FROM codelists.cl_extraction_mode;

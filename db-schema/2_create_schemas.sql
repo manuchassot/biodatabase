@@ -7,9 +7,11 @@ DROP SCHEMA IF EXISTS analysis CASCADE;
 DROP SCHEMA IF EXISTS codelists CASCADE;
 DROP SCHEMA IF EXISTS metadata CASCADE;
 DROP SCHEMA IF EXISTS import CASCADE;
+DROP SCHEMA IF EXISTS import_log CASCADE;
 DROP SCHEMA IF EXISTS spatial CASCADE;
 
 CREATE SCHEMA import;
+CREATE SCHEMA import_log;
 
 -- Define default privileges on schemas (requires PostgreSQL 10+)
 ALTER DEFAULT PRIVILEGES GRANT USAGE ON SCHEMAS TO sfa_view, sfa_update, sfa_admin;
@@ -502,7 +504,7 @@ CREATE TABLE co_sampling_environment
     capture_depth_m INT,
     aggregation varchar(50) REFERENCES cl_aggregation ON UPDATE CASCADE ON DELETE RESTRICT,
     description_aggregation TEXT,
-    geom geometry(GEOMETRYCOLLECTION, 4326),
+    geom geometry(Geometry, 4326),
     geom_uncertainty_km INT,
     latitude_deg_dec decimal,
     latitude_deg_dec_min decimal,
@@ -514,7 +516,7 @@ CREATE TABLE co_sampling_environment
 
 CREATE TABLE co_sampling_organism
 (
-    id varchar(20) PRIMARY KEY,
+    id varchar(50) PRIMARY KEY,
     sampling_platform VARCHAR(50) REFERENCES cl_sampling_platform ON UPDATE CASCADE ON DELETE RESTRICT,
     sampling_status varchar(50) REFERENCES cl_organism_sampling_status ON UPDATE CASCADE ON DELETE RESTRICT,
     sampling_date date,
@@ -522,7 +524,6 @@ CREATE TABLE co_sampling_organism
     first_tag_number varchar(10),
     second_tag_number varchar(10),
     species_code_fao varchar(50) REFERENCES cl_species ON UPDATE CASCADE ON DELETE RESTRICT,
-    project varchar(50) REFERENCES cl_project ON UPDATE CASCADE ON DELETE RESTRICT,
     stomach_prey_groups varchar(50) REFERENCES cl_prey_group ON UPDATE CASCADE ON DELETE RESTRICT,
     organism_length_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
     organism_weight_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -530,30 +531,36 @@ CREATE TABLE co_sampling_organism
     macro_maturity_stage int REFERENCES cl_macro_maturity ON UPDATE CASCADE ON DELETE RESTRICT,
     sex varchar(50) REFERENCES cl_sex ON UPDATE CASCADE ON DELETE RESTRICT,
     otolith_count int REFERENCES cl_otolith_number ON UPDATE CASCADE ON DELETE RESTRICT,
-    otolith_breaking VARCHAR(50) REFERENCES cl_otolith_breaking ON UPDATE CASCADE ON DELETE RESTRICT,
-    sampling_environment varchar(20) REFERENCES co_sampling_environment ON UPDATE CASCADE ON DELETE RESTRICT
+    otolith_breaking VARCHAR(50) REFERENCES cl_otolith_breaking ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE TABLE co_project_sampling_organism
+(
+    project varchar(50) REFERENCES cl_project ON UPDATE CASCADE ON DELETE RESTRICT,
+    sampling_organism VARCHAR(50) REFERENCES co_sampling_organism ON UPDATE CASCADE ON DELETE RESTRICT,
+    PRIMARY KEY(project, sampling_organism)
+);
+
+CREATE TABLE co_organism_captured
+(
+    sampling_organism varchar(50) REFERENCES co_sampling_organism ON UPDATE CASCADE ON DELETE RESTRICT,
+    sampling_environment varchar(20) REFERENCES co_sampling_environment ON UPDATE CASCADE ON DELETE RESTRICT,
+    PRIMARY KEY(sampling_organism, sampling_environment)
 );
 
 CREATE TABLE co_sample
 (
-    id varchar(20) PRIMARY KEY,
+    id varchar(50) PRIMARY KEY,
     tissue varchar(50) REFERENCES cl_tissue ON UPDATE CASCADE ON DELETE RESTRICT,
     position varchar(50) REFERENCES cl_sample_position ON UPDATE CASCADE ON DELETE RESTRICT,
-    table_source varchar(255),
-    sampling_organism varchar(20) REFERENCES co_sampling_organism ON UPDATE CASCADE ON DELETE RESTRICT
+    sampling_organism varchar(50) REFERENCES co_sampling_organism ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 CREATE TABLE co_subsample
 (
-    id varchar(20) PRIMARY KEY,
+    id varchar(50) PRIMARY KEY,
     operator_name varchar(25) REFERENCES cl_operator ON UPDATE CASCADE ON DELETE RESTRICT,
     location varchar(255),
-    sample varchar(20) REFERENCES co_sample ON UPDATE CASCADE ON DELETE RESTRICT
-);
-
-CREATE TABLE co_prep
-(
-    id varchar(20) PRIMARY KEY REFERENCES co_subsample ON UPDATE CASCADE ON DELETE RESTRICT,
     packaging1 varchar(50) REFERENCES cl_packaging ON UPDATE CASCADE ON DELETE RESTRICT,
     storage_mode1 varchar(20) REFERENCES cl_storage_mode ON UPDATE CASCADE ON DELETE RESTRICT,
     storage_date date,
@@ -561,12 +568,14 @@ CREATE TABLE co_prep
     drying_date date,
     packaging_final varchar(50) REFERENCES cl_packaging ON UPDATE CASCADE ON DELETE RESTRICT,
     storage_mode_final varchar(20) REFERENCES cl_storage_mode ON UPDATE CASCADE ON DELETE RESTRICT,
-    grinding_mode varchar(50) REFERENCES cl_grinding_mode ON UPDATE CASCADE ON DELETE RESTRICT
+    grinding_mode varchar(50) REFERENCES cl_grinding_mode ON UPDATE CASCADE ON DELETE RESTRICT,
+    remarks text,
+    sample varchar(50) REFERENCES co_sample ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 CREATE TABLE co_organism_measure
 (
-    organism varchar(20) REFERENCES co_sampling_organism ON UPDATE CASCADE ON DELETE RESTRICT,
+    organism varchar(50) REFERENCES co_sampling_organism ON UPDATE CASCADE ON DELETE RESTRICT,
     measure_type varchar(50) REFERENCES md_organism_measure_detail ON UPDATE CASCADE ON DELETE RESTRICT,
     measure_value float,
     measure_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -579,16 +588,16 @@ CREATE TABLE an_analysis
 (
     id varchar(20) PRIMARY KEY,
     type varchar(10),
-    "group" varchar(10),
-    FOREIGN KEY (type, "group") REFERENCES cl_analysis(analysis, analysis_group) ON UPDATE CASCADE ON DELETE RESTRICT,
+    an_group varchar(10),
+    FOREIGN KEY (type, an_group) REFERENCES cl_analysis(analysis, analysis_group) ON UPDATE CASCADE ON DELETE RESTRICT,
     replicate varchar(5) REFERENCES cl_analysis_replicate ON UPDATE CASCADE ON DELETE RESTRICT,
     lab varchar(15) REFERENCES cl_analysis_lab ON UPDATE CASCADE ON DELETE RESTRICT,
     operator_name varchar(25) REFERENCES cl_operator ON UPDATE CASCADE ON DELETE RESTRICT,
     sample_description text,
     mode varchar(15) REFERENCES cl_analysis_mode ON UPDATE CASCADE ON DELETE RESTRICT,
     remarks text,
-    check_date date,
-    subsample varchar(20) REFERENCES co_subsample ON UPDATE CASCADE ON DELETE RESTRICT
+    an_date date,
+    subsample varchar(50) REFERENCES co_subsample ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 CREATE TABLE an_lipid_classes
@@ -601,7 +610,7 @@ CREATE TABLE an_lipid_classes
     analysis_sample_mass_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
     lipidclasses_c_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
     extraction_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT,
-    extraction_series int
+    extraction_series VARCHAR(10)
 );
 
 CREATE TABLE an_amino_acids
@@ -622,7 +631,7 @@ CREATE TABLE an_proteins
     spotted_volume int
 );
 
-CREATE TABLE an_otolith_morphometry
+CREATE TABLE an_otolith_morphometrics
 (
     analysis_id varchar(20) PRIMARY KEY REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
     part varchar(50) REFERENCES cl_otolith_part ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -680,13 +689,12 @@ CREATE TABLE an_fatty_acids
     processing_replicate varchar(7) REFERENCES cl_processing_replicate ON UPDATE CASCADE ON DELETE RESTRICT,
     fractionation_mode varchar(50) REFERENCES cl_fractionation_mode ON UPDATE CASCADE ON DELETE RESTRICT,
     fraction_type varchar(50) REFERENCES cl_fraction_type ON UPDATE CASCADE ON DELETE RESTRICT,
-    dilution_factor int,
     derivatization_mode varchar(50) REFERENCES cl_derivatization_mode ON UPDATE CASCADE ON DELETE RESTRICT,
     analysis_sample_mass float,
     analysis_sample_mass_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
-    faa_c_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
+    fa_c_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
     extraction_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT,
-    extraction_series int
+    extraction_series VARCHAR(10)
 );
 
 CREATE TABLE an_total_lipids
@@ -705,9 +713,9 @@ CREATE TABLE an_total_lipids
 
 CREATE TABLE an_analysis_reference_material
 (
-    analysis_id varchar(20) REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
+    analysis varchar(20) REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
     reference_material varchar(50) REFERENCES cl_reference_material ON UPDATE CASCADE ON DELETE RESTRICT,
-    PRIMARY KEY (analysis_id, reference_material)
+    PRIMARY KEY (analysis, reference_material)
 );
 
 CREATE TABLE an_contaminants_hg
@@ -725,7 +733,6 @@ CREATE TABLE an_stable_isotopes
     processing_replicate varchar(7) REFERENCES cl_processing_replicate ON UPDATE CASCADE ON DELETE RESTRICT,
     si_plate_code varchar(25),
     analysis_sample_mass float,
-    analysis_sample_mass_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
     lipid_remov_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT,
     urea_remov_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT,
     carbonate_remov_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT
@@ -741,7 +748,7 @@ CREATE TABLE an_fatmeter
 CREATE TABLE an_contaminants_dioxin
 (
     analysis_id varchar(20) PRIMARY KEY REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
-    dioxon_c_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
+    dioxin_c_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
     extraction_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
@@ -760,7 +767,7 @@ CREATE TABLE an_contaminants_musk
     extraction_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
-CREATE TABLE an_contaminants_pfcdeoc
+CREATE TABLE an_contaminants_pfc
 (
     analysis_id varchar(20) PRIMARY KEY REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
     pfc_c_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -777,7 +784,7 @@ CREATE TABLE an_contaminants_pcbdeoc
 CREATE TABLE an_moisture
 (
     analysis_id varchar(20) PRIMARY KEY REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
-    weighing_c_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT
+    weighing_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 CREATE TABLE an_analysis_measure
