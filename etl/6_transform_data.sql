@@ -23,8 +23,8 @@ INSERT INTO md_ddd SELECT * FROM import.md_ddd_database;
 
 -- md_analysis_tracer_detail
 ALTER SEQUENCE md_analysis_tracer_detail_id_seq RESTART;
-INSERT INTO md_analysis_tracer_detail(analysis_type, tracer_name, standard_unit, tracer_description, views_level)
-SELECT entity, variable, unit, comment, views_level FROM md_ddd a
+INSERT INTO md_analysis_tracer_detail(analysis_type, tracer_name, standard_unit, tracer_description, views_level, ref_table, data_type)
+SELECT entity, variable, unit, comment, views_level, CASE WHEN length(trim(basic_checks)) = 0 THEN NULL ELSE basic_checks END, data_type FROM md_ddd a
 WHERE tracer = 1 AND NOT EXISTS (SELECT 1 FROM metadata.md_ddd b WHERE a.entity = b.entity AND
                    a.variable = b.variable GROUP BY entity, variable HAVING COUNT(*) > 1) ORDER BY entity, variable;
 
@@ -82,11 +82,8 @@ BEGIN
              , recordvar.measure_name, recordvar.measure_name, recordvar.measure_name)
         USING recordvar.measure_name;
         EXECUTE
-        format('UPDATE import.co_data_sampling_organism SET %I = NULL WHERE length(trim(%I::text)) = 0 OR %I::text !~ ' || quote_literal('^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$')
-             , recordvar.measure_name, recordvar.measure_name, recordvar.measure_name);
-        EXECUTE
-        format('INSERT INTO core.co_organism_measure SELECT organism_identifier, $1, %I::double precision, NULL
-               FROM import.co_data_sampling_organism WHERE %I IS NOT NULL'
+        format('INSERT INTO core.co_organism_measure SELECT organism_identifier, $1, %I::decimal, NULL
+               FROM import.co_data_sampling_organism WHERE %I::text ~ ' || quote_literal('^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$')
              , recordvar.measure_name, recordvar.measure_name)
         USING recordvar.measure_name;
     END LOOP;
@@ -215,7 +212,7 @@ INSERT INTO an_proteins (analysis_id, analysis_sample_mass, analysis_sample_mass
 
 -- an_reproduction_maturity
 UPDATE import.an_repro_maturity SET atretic_oocyte_stage = NULL WHERE length(trim(atretic_oocyte_stage)) = 0;
-INSERT INTO an_reproduction_maturity (analysis_id, micro_sex, micro_maturity_stage, mago_substage, mago_stage, pof, a_atresia, b_atresia, brown_bodies, muscle_bundles, rho, ovary_wall, repro_phase, repro_subphase, atretic_oocyte_stage, atretic_oocyte_percent, atretic_stage)  SELECT talend_an_id, micro_sex, micro_maturity, mago_substage, mago_stage, upper(trim(pof)), CASE WHEN upper(trim(a_atresia)) = 'Y' THEN TRUE WHEN upper(trim(a_atresia)) = 'N' THEN FALSE END, CASE WHEN upper(trim(b_atresia)) = 'Y' THEN TRUE WHEN upper(trim(b_atresia)) = 'N' THEN FALSE END, CASE WHEN upper(trim(brown_bodies)) = 'Y' THEN TRUE WHEN upper(trim(brown_bodies)) = 'N' THEN FALSE END, CASE WHEN upper(trim(muscle_bundles)) = 'Y' THEN TRUE WHEN upper(trim(muscle_bundles)) = 'N' THEN FALSE END, CASE WHEN upper(trim(rho)) = 'Y' THEN TRUE WHEN upper(trim(rho)) = 'N' THEN FALSE END, ovary_wall::numeric, repro_phase, repro_subphase, trim(atretic_oocyte_stage), atresia_percent, CASE WHEN atretic_stage ILIKE '%minor%' THEN 0 WHEN atretic_stage ILIKE '%moderate%' THEN 1 WHEN atretic_stage ILIKE '%major%' THEN 2 WHEN atretic_stage ILIKE '%complete%' THEN 3 END FROM import.an_repro_maturity WHERE subsample_identifier IN (SELECT id FROM co_subsample) AND talend_an_id NOT IN (SELECT talend_an_id FROM log_duplicate_analysis_ids) AND talend_an_id NOT IN (SELECT talend_an_id FROM log_missing_micro_maturity_combinations);
+INSERT INTO an_reproduction_maturity (analysis_id, micro_sex, micro_maturity_stage, mago_substage, mago_stage, pof, a_atresia, b_atresia, brown_bodies, muscle_bundles, rho, repro_phase, repro_subphase, atretic_oocyte_stage, atretic_oocyte_percent, atretic_stage)  SELECT talend_an_id, micro_sex, micro_maturity, mago_substage, mago_stage, upper(trim(pof)), CASE WHEN upper(trim(a_atresia)) = 'Y' THEN TRUE WHEN upper(trim(a_atresia)) = 'N' THEN FALSE END, CASE WHEN upper(trim(b_atresia)) = 'Y' THEN TRUE WHEN upper(trim(b_atresia)) = 'N' THEN FALSE END, CASE WHEN upper(trim(brown_bodies)) = 'Y' THEN TRUE WHEN upper(trim(brown_bodies)) = 'N' THEN FALSE END, CASE WHEN upper(trim(muscle_bundles)) = 'Y' THEN TRUE WHEN upper(trim(muscle_bundles)) = 'N' THEN FALSE END, CASE WHEN upper(trim(rho)) = 'Y' THEN TRUE WHEN upper(trim(rho)) = 'N' THEN FALSE END, repro_phase, repro_subphase, trim(atretic_oocyte_stage), atresia_percent, CASE WHEN atretic_stage ILIKE '%minor%' THEN 0 WHEN atretic_stage ILIKE '%moderate%' THEN 1 WHEN atretic_stage ILIKE '%major%' THEN 2 WHEN atretic_stage ILIKE '%complete%' THEN 3 END FROM import.an_repro_maturity WHERE subsample_identifier IN (SELECT id FROM co_subsample) AND talend_an_id NOT IN (SELECT talend_an_id FROM log_duplicate_analysis_ids) AND talend_an_id NOT IN (SELECT talend_an_id FROM log_missing_micro_maturity_combinations);
 
 -- an_stable_isotopes
 INSERT INTO an_stable_isotopes (analysis_id, processing_replicate, si_plate_code, analysis_sample_mass, lipid_remov_mode, urea_remov_mode, carbonate_remov_mode)  SELECT talend_an_id, processing_replicate, si_plate_code, analysis_sample_mass, lipid_remov_mode, urea_remov_mode, carbonate_remov_mode FROM import.an_stable_isotopes WHERE subsample_identifier IN (SELECT id FROM co_subsample) AND talend_an_id NOT IN (SELECT talend_an_id FROM log_duplicate_analysis_ids);
@@ -271,9 +268,12 @@ DECLARE
     tablename_curs CURSOR FOR SELECT tablename FROM pg_tables WHERE schemaname = 'import' AND tablename LIKE 'an_%';
 BEGIN
     FOR table_rec IN tablename_curs LOOP
-        FOR tracer_rec IN EXECUTE format ('SELECT id, lower(tracer_name) AS tracer_name FROM metadata.md_analysis_tracer_detail WHERE replace($1,' || quote_literal('_') ||  ',' || quote_literal('') || ') LIKE ' || quote_literal('%%') || ' || replace(analysis_type,' || quote_literal('_') ||  ',' || quote_literal('') || ')') USING table_rec.tablename
+        FOR tracer_rec IN EXECUTE format ('SELECT id, lower(tracer_name) AS tracer_name' ||
+                                          ' FROM metadata.md_analysis_tracer_detail WHERE (upper(data_type) = ' || quote_literal('DEC') || ' OR (upper(data_type) = ' || quote_literal('INTEGER') || ' AND ref_table IS NULL)) AND replace($1,' || quote_literal('_') ||  ',' || quote_literal('') || ') LIKE ' || quote_literal('%%') || ' || replace(analysis_type,' || quote_literal('_') ||  ',' || quote_literal('') || ')') USING table_rec.tablename
         LOOP
-            EXECUTE format('SELECT count(*) FROM information_schema.columns WHERE table_schema = ' || quote_literal('import') || ' AND table_name = $1 AND column_name = $2') INTO test_count USING table_rec.tablename, tracer_rec.tracer_name;
+            EXECUTE format('SELECT count(*) FROM information_schema.columns' ||
+                           ' WHERE table_schema = ' || quote_literal('import') ||
+                           ' AND table_name = $1 AND column_name = $2') INTO test_count USING table_rec.tablename, tracer_rec.tracer_name;
             IF test_count = 0 THEN
                 CONTINUE;
             END IF;
@@ -284,11 +284,8 @@ BEGIN
                  , tracer_rec.tracer_name, table_rec.tablename, tracer_rec.tracer_name, tracer_rec.tracer_name)
             USING tracer_rec.tracer_name;
             EXECUTE
-            format('UPDATE import.%I SET %I = NULL WHERE length(trim(%I::text)) = 0 OR %I::text !~ ' || quote_literal('^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$')
-                 , table_rec.tablename, tracer_rec.tracer_name, tracer_rec.tracer_name, tracer_rec.tracer_name);
-            EXECUTE
-            format('INSERT INTO analysis.an_analysis_measure SELECT talend_an_id, $1, %I::double precision, NULL
-                   FROM import.%I WHERE %I IS NOT NULL AND talend_an_id IN (SELECT id FROM analysis.an_analysis)'
+            format('INSERT INTO analysis.an_analysis_measure SELECT talend_an_id, $1, %I::decimal, NULL
+                   FROM import.%I WHERE talend_an_id IN (SELECT id FROM analysis.an_analysis) AND %I::text ~ ' || quote_literal('^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$')
                  , tracer_rec.tracer_name, table_rec.tablename, tracer_rec.tracer_name)
             USING tracer_rec.id;
         END LOOP;

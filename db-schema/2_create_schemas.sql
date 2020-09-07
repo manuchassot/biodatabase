@@ -454,6 +454,8 @@ CREATE TABLE md_analysis_tracer_detail
 	standard_unit varchar(255),
 	tracer_description text,
 	views_level integer,
+	data_type  VARCHAR(20),
+	ref_table VARCHAR(50),
 	UNIQUE (analysis_type, tracer_name)
 );
 
@@ -672,7 +674,6 @@ CREATE TABLE an_reproduction_maturity
     brown_bodies boolean,
     muscle_bundles boolean,
     rho boolean,
-    ovary_wall decimal,
     repro_phase varchar(50),
     repro_subphase varchar(50),
     atretic_oocyte_stage varchar(50) REFERENCES cl_atretic_oocyte_stage ON UPDATE CASCADE ON DELETE RESTRICT,
