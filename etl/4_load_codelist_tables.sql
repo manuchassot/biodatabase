@@ -6,6 +6,7 @@
 \COPY codelists.cl_analysis_replicate FROM 'cl_analysis_replicate.csv' WITH DELIMITER E'\t' CSV HEADER;
 \COPY codelists.cl_analysis_sample_description FROM 'cl_analysis_sample_description.csv' WITH DELIMITER E'\t' CSV HEADER;
 \COPY codelists.cl_atresia FROM 'cl_atresia.csv' WITH DELIMITER E'\t' CSV HEADER;
+\COPY codelists.cl_atretic_oocyte_stage FROM 'cl_atretic_oocyte_stage.csv' WITH DELIMITER E'\t' CSV HEADER;
 \COPY codelists.cl_derivatization_mode FROM 'cl_derivatization_mode.csv' WITH DELIMITER E'\t' CSV HEADER;
 \COPY codelists.cl_drying_mode FROM 'cl_drying_mode.csv' WITH DELIMITER E'\t' CSV HEADER;
 \COPY codelists.cl_extraction_mode FROM 'cl_extraction_mode.csv' WITH DELIMITER E'\t' CSV HEADER;

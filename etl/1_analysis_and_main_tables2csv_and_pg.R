@@ -5,7 +5,7 @@ library(RPostgreSQL)
 createDbConn <- function() {
 
   drv <- dbDriver("PostgreSQL")
-  con <- dbConnect(drv, dbname="emotion", host="localhost", port=5432, user="geodb_admin")
+  con <- dbConnect(drv, dbname="emotion", host="localhost", port=5433, user="geodb_admin")
   dbGetQuery(con, "SET SEARCH_PATH TO import, public")  
   return (con)
 }
@@ -31,13 +31,17 @@ df2pg <- function(dbConn, tableName, df) {
   if (dbExistsTable(dbConn, tableName)) {
     dbRemoveTable(dbConn, tableName)
   }
+  # Convert column names to lowercase
+  colnames(df) <- tolower(colnames(df))
+  # Replace "-" with "_" in column names
+  colnames(df) <- gsub("-", "_", colnames(df))
   dbWriteTable(dbConn, tableName, df, row.names = FALSE)
   return (invisible(NULL))
 }
 
 processData <- function(dbConn, dataDir, tableName, csvFileName, xlsFileName, sheetName = NULL) {
   
-  df = xlsx2df(dataDir, xlsFileName, sheetName)
+  df <- xlsx2df(dataDir, xlsFileName, sheetName)
   if (startsWith(tableName, "an_")) {
     subDir <- "/csv/analysis/"
   } else if (startsWith(tableName, "co_")) {
@@ -55,8 +59,7 @@ processData <- function(dbConn, dataDir, tableName, csvFileName, xlsFileName, sh
 # Read data directory (containing Excel files) from commandline argument
 # Usage: Rscript analysis_and_main_tables2csv_and_pg.R path_to_excel_files
 args <- commandArgs(trailingOnly = TRUE)
-dataDir=args[1]
-#dataDir <- '~/Downloads/SFA_Excel'
+dataDir <- args[1]
 
 con <- createDbConn()
 
@@ -70,7 +73,7 @@ processData(con, dataDir, "an_contaminants_hg", "Data_Contaminants_HG.csv", "Dat
 processData(con, dataDir, "an_contaminants_tm", "Data_Contaminants_TM.csv", "Data_Contaminants.xlsx", "tm")
 
 # 4: PCBs
-processData(con, dataDir, "an_contaminants_pcbdeoc", "Data_Contaminants_PCBDEOC.csv", "Data_Contaminants.xlsx", "pcb")
+processData(con, dataDir, "an_contaminants_pcb", "Data_Contaminants_PCB.csv", "Data_Contaminants.xlsx", "pcb")
 
 # 5: Dioxin
 processData(con, dataDir, "an_contaminants_dioxin", "Data_Contaminants_Dioxin.csv", "Data_Contaminants.xlsx", "dioxin")
@@ -106,12 +109,18 @@ processData(con, dataDir, "an_repro_fecundity", "Data_Reproduction_fecundity.csv
 processData(con, dataDir, "an_stable_isotopes", "Data_StableIsotopes.csv", "Data_StableIsotopes.xlsx")
 
 # 16: Stomach contents
-#processData(con, dataDir, "an_stomach_content", "Data_StomachContents.csv", "Data_StomachContents.xlsx", "stomach_content_category")
+processData(con, dataDir, "an_stomach_content_category", "Data_StomachContents.csv", "Data_StomachContents.xlsx", "stomach_content_category")
 
 # 17: Total lipids
 processData(con, dataDir, "an_total_lipids", "Data_TotalLipids.csv", "Data_TotalLipids.xlsx", "totallipids")
 
-# 18: Main XLSX files
+# 18: Moisture
+processData(con, dataDir, "an_moisture", "Data_Moisture.csv", "Data_Moisture.xlsx", "moisture")
+
+# 19: PFCs
+processData(con, dataDir, "an_contaminants_pfc", "Data_Contaminants_PFC.csv", "Data_Contaminants.xlsx", "pfc")
+
+# 20: Main XLSX files
 processData(con, dataDir, "co_data_prep", "Data_Prep.csv", "Data_Prep.xlsx")
 processData(con, dataDir, "co_data_sampling_environment", "Data_Sampling_Environment.csv", "Data_Sampling.xlsx", "environment")
 processData(con, dataDir, "co_data_sampling_organism", "Data_Sampling_Organism.csv", "Data_Sampling.xlsx", "organism")

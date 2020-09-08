@@ -23,19 +23,21 @@ df2csv <- function(dataDir, csvFileName, df) {
 
 processData <- function(dataDir, csvFileName, xlsFileName, sheetName = NULL) {
   
-  df = xlsx2df(dataDir, xlsFileName, sheetName)
+  df <- xlsx2df(dataDir, xlsFileName, sheetName)
   # Replace line breaks within cells:
   df <- data.frame(lapply(df, function(x) {
-                      gsub("\n", " | ", x)
-                    }))
+    gsub("\r\n", " | ", x)
+  }))
+  df <- data.frame(lapply(df, function(x) {
+    gsub("\n", " | ", x)
+  }))
   df2csv(dataDir, csvFileName, df)
 }
 
 # Read data directory (containing Excel files) from commandline argument
 # Usage: Rscript codelist_tables2csv.R path_to_excel_files
 args <- commandArgs(trailingOnly = TRUE)
-dataDir=args[1]
-#dataDir<- '~/Downloads/SFA_Excel'
+dataDir <- args[1]
 
 processData(dataDir, "cl_aggregation.csv", "DDD_Database.xlsx", "AGGREGATION")
 processData(dataDir, "cl_amino_acid.csv", "DDD_Database.xlsx", "AMINO_ACIDS")
@@ -45,6 +47,7 @@ processData(dataDir, "cl_analysis_mode.csv", "DDD_Database.xlsx", "ANALYSIS_MODE
 processData(dataDir, "cl_analysis_replicate.csv", "DDD_Database.xlsx", "ANALYSIS_REPLICATE")
 processData(dataDir, "cl_analysis_sample_description.csv", "DDD_Database.xlsx", "ANALYSIS_SAMP_DESCRIPTION")
 processData(dataDir, "cl_atresia.csv", "DDD_Database.xlsx", "ATRESIA")
+processData(dataDir, "cl_atretic_oocyte_stage.csv", "DDD_Database.xlsx", "ATRETIC_OOCYTE_STAGE")
 processData(dataDir, "cl_derivatization_mode.csv", "DDD_Database.xlsx", "DERIVATIZATION_MODE")
 processData(dataDir, "cl_drying_mode.csv", "DDD_Database.xlsx", "DRYING_MODE")
 processData(dataDir, "cl_extraction_mode.csv", "DDD_Database.xlsx", "EXTRACTION_MODE")
