@@ -54,7 +54,6 @@ CREATE TABLE cl_species
 	scientific_name varchar(100),
 	english_name varchar(100),
 	french_name varchar(100),
-	seychelles_creole_name varchar(100),
 	spanish_name varchar(100),
 	arabic_name varchar(100),
 	chinese_name varchar(100),
@@ -62,6 +61,8 @@ CREATE TABLE cl_species
 	author varchar(100),
 	family varchar(100),
 	"order" varchar(100),
+	stats_data varchar(10),
+	seychelles_creole_name varchar(100),
 	idguide_nevill_2013 varchar(100),
 	diksyonner_pwason_savy varchar(100),
 	sfa_id_ppt text,
@@ -182,12 +183,17 @@ CREATE TABLE cl_extraction_mode
 
 CREATE TABLE cl_fatty_acid
 (
+    fa_p varchar(255),
+    fa_c varchar (255),
 	fa varchar(255) PRIMARY KEY,
 	fa_name varchar(255),
 	fa_code varchar(255),
 	fa_group1 varchar(255),
 	fa_group1_name varchar(255),
-	fa_omega varchar(255)
+	fa_omega varchar(255),
+	cis_trans varchar(255),
+	fa_other_name varchar(255),
+	verif varchar(10)
 );
 
 CREATE TABLE cl_grinding_mode
@@ -513,7 +519,9 @@ CREATE TABLE co_sampling_environment
     latitude_deg_dec_max decimal,
     longitude_deg_dec decimal,
     longitude_deg_dec_min decimal,
-    longitude_deg_dec_max decimal
+    longitude_deg_dec_max decimal,
+    turbidity decimal,
+    ph decimal
 );
 
 CREATE TABLE co_sampling_organism
@@ -533,7 +541,9 @@ CREATE TABLE co_sampling_organism
     macro_maturity_stage int REFERENCES cl_macro_maturity ON UPDATE CASCADE ON DELETE RESTRICT,
     sex varchar(50) REFERENCES cl_sex ON UPDATE CASCADE ON DELETE RESTRICT,
     otolith_count int REFERENCES cl_otolith_number ON UPDATE CASCADE ON DELETE RESTRICT,
-    otolith_breaking VARCHAR(50) REFERENCES cl_otolith_breaking ON UPDATE CASCADE ON DELETE RESTRICT
+    otolith_breaking VARCHAR(50) REFERENCES cl_otolith_breaking ON UPDATE CASCADE ON DELETE RESTRICT,
+    shell_length decimal,
+    shell_height decimal
 );
 
 CREATE TABLE co_project_sampling_organism

@@ -1,11 +1,12 @@
 library(openxlsx)
 library(RPostgreSQL)
+library(argparse)
 
 # DB connection
-createDbConn <- function() {
+createDbConn <- function(database, host, port, user, password) {
 
   drv <- dbDriver("PostgreSQL")
-  con <- dbConnect(drv, dbname="emotion", host="localhost", port=5433, user="geodb_admin")
+  con <- dbConnect(drv, dbname=database, host=host, port=port, user=user, password=password)
   dbGetQuery(con, "SET SEARCH_PATH TO import, public")  
   return (con)
 }
@@ -50,18 +51,23 @@ processData <- function(dbConn, dataDir, tableName, csvFileName, xlsFileName, sh
     subDir <- "/csv/metadata/"
   }
   if (!dir.exists(file.path(dataDir, subDir))) {
-    dir.create(file.path(dataDir, subDir))
+    dir.create(file.path(dataDir, subDir), recursive = TRUE)
   }
   df2csv(dataDir, subDir, csvFileName, df)
   df2pg(dbConn, tableName, df)
 }
 
-# Read data directory (containing Excel files) from commandline argument
-# Usage: Rscript analysis_and_main_tables2csv_and_pg.R path_to_excel_files
-args <- commandArgs(trailingOnly = TRUE)
-dataDir <- args[1]
+parser <- ArgumentParser(description='Convert Excel data to CSV and PostgreSQL')
+parser$add_argument('--datadir', action='store', type='character', required=TRUE, help='Directory containing Excel files')
+parser$add_argument('--db', action='store', type='character', default='emotion', help='Database (default: emotion)')
+parser$add_argument('--host', action='store', type='character', default='localhost', help='Host (default: localhost)')
+parser$add_argument('--port', action='store', type='integer', default=5432, help='Port (default: 5432)')
+parser$add_argument('--user', action='store', type='character', default='geodb_admin', help='Username (default: geodb_admin)')
+parser$add_argument('--pw', action='store', type='character', required=TRUE, help='Password')
+args <- parser$parse_args()
+dataDir <- args$datadir
 
-con <- createDbConn()
+con <- createDbConn(args$db, args$host, args$port, args$user, args$pw)
 
 # 1: Amino acids
 processData(con, dataDir, "an_amino_acids", "Data_AminoAcids.csv", "Data_AminoAcids.xlsx")
