@@ -1,5 +1,6 @@
 library(openxlsx)
 library(stringr)
+library(argparse)
 
 xlsx2df <- function(dataDir, xlsFileName, sheetName = NULL) {
   
@@ -34,10 +35,10 @@ processData <- function(dataDir, csvFileName, xlsFileName, sheetName = NULL) {
   df2csv(dataDir, csvFileName, df)
 }
 
-# Read data directory (containing Excel files) from commandline argument
-# Usage: Rscript codelist_tables2csv.R path_to_excel_files
-args <- commandArgs(trailingOnly = TRUE)
-dataDir <- args[1]
+parser <- ArgumentParser(description='Convert Excel codelists to CSV')
+parser$add_argument('--datadir', action='store', type='character', required=TRUE, help='Directory containing Excel files')
+args <- parser$parse_args()
+dataDir <- args$datadir
 
 processData(dataDir, "cl_aggregation.csv", "DDD_Database.xlsx", "AGGREGATION")
 processData(dataDir, "cl_amino_acid.csv", "DDD_Database.xlsx", "AMINO_ACIDS")
