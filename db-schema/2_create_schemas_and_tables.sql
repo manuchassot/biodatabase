@@ -168,7 +168,7 @@ CREATE TABLE cl_fish_face
 	desc_fish_face_en text UNIQUE
 );
 
-CREATE TABLE cl_well_position
+CREATE TABLE cl_vessel_well
 (
 	well_position varchar(15) primary key,
 	well_position_en text UNIQUE,
@@ -501,7 +501,7 @@ CREATE TABLE co_sampling_environment
     capture_time_end timetz,
     activity_number INT,
     sea_surface_temperature_deg_celcius FLOAT,
-    well_position VARCHAR(15) REFERENCES cl_well_position ON UPDATE CASCADE ON DELETE RESTRICT,
+    well_position VARCHAR(15) REFERENCES cl_vessel_well ON UPDATE CASCADE ON DELETE RESTRICT,
     well_number VARCHAR(255),
     ocean_code VARCHAR(10) REFERENCES cl_ocean ON UPDATE CASCADE ON DELETE RESTRICT,
     gear_code VARCHAR(50) REFERENCES cl_gear ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -742,7 +742,7 @@ CREATE TABLE an_stable_isotopes
 (
     analysis_id varchar(20) PRIMARY KEY REFERENCES an_analysis ON UPDATE CASCADE ON DELETE RESTRICT,
     processing_replicate varchar(7) REFERENCES cl_processing_replicate ON UPDATE CASCADE ON DELETE RESTRICT,
-    si_plate_code varchar(25),
+    si_plate_code varchar(100),
     analysis_sample_mass float,
     lipid_remov_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT,
     urea_remov_mode varchar(50) REFERENCES cl_extraction_mode ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -806,5 +806,146 @@ CREATE TABLE an_analysis_measure
     measure_unit varchar(50) REFERENCES cl_measure_unit ON UPDATE CASCADE ON DELETE RESTRICT,
     PRIMARY KEY (analysis, measure_type)
 );
+
+SET SEARCH_PATH TO import_log, public;
+
+CREATE TABLE log_invalid_data
+(
+    entity varchar(50),
+    schema_name varchar(50),
+    table_name varchar(50),
+    column_name varchar(50),
+    required_excel_data_type varchar(50)
+);
+
+CREATE TABLE log_duplicate_analysis_ids
+(
+    analysis_id varchar(20)
+);
+
+CREATE TABLE log_values_without_codelist_entry
+(
+    main_table VARCHAR(80),
+    fk_column VARCHAR(80),
+    codelist_table VARCHAR(80),
+    pk_column VARCHAR(80),
+    missing_key_value VARCHAR(100)
+);
+
+CREATE OR REPLACE FUNCTION log_invalid_data (entity_name text, schema_name text, tbl_name text) RETURNS VOID AS
+$func$
+BEGIN
+    WITH data_types AS
+    (
+         SELECT a.variable, a.data_type as defined_data_type, b.data_type as current_data_type
+         FROM metadata.md_ddd a
+                  JOIN
+              information_schema.columns b ON a.variable = b.column_name
+         WHERE a.entity = entity_name
+           AND b.table_schema = schema_name
+           AND b.table_name = tbl_name
+    )
+    INSERT INTO import_log.log_invalid_data SELECT entity_name, schema_name, tbl_name, variable, defined_data_type FROM data_types WHERE
+    (lower(defined_data_type) = 'string' AND current_data_type NOT IN ('text', 'character varying', 'double precision')) OR
+    (lower(defined_data_type) = 'integer' AND current_data_type NOT IN ('integer', 'smallint', 'bigint')) OR
+    (lower(defined_data_type) = 'hour' AND current_data_type != 'double precision') OR
+    (lower(defined_data_type) = 'date' AND current_data_type != 'date') OR
+    (lower(defined_data_type) = 'dec' AND current_data_type NOT IN ('numeric', 'double precision', 'real', 'decimal', 'integer', 'smallint', 'bigint'));
+END
+$func$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION log_values_without_codelist_entry (entity_name text, schema_name text, tbl_name text) RETURNS VOID AS
+$func$
+DECLARE
+    ttt_record RECORD;
+BEGIN
+    DROP TABLE IF EXISTS ttt;
+    CREATE TEMP TABLE ttt
+    (
+        main_table VARCHAR(80),
+        fk_column VARCHAR(80),
+        codelist_table VARCHAR(80),
+        pk_column VARCHAR(80)
+    );
+    WITH xxx AS
+     (
+         SELECT tbl_name as main_table, a.variable as fk_column, a.basic_checks as codelist_table
+         FROM metadata.md_ddd a
+                  JOIN
+              information_schema.columns b ON a.variable = b.column_name
+         WHERE a.entity = entity_name
+           AND b.table_schema = schema_name
+           AND b.table_name = tbl_name
+           AND a.basic_checks IS NOT NULL
+     ),
+    zzz AS
+    (
+        select kcu.table_name,
+        kcu.ordinal_position as position,
+        kcu.column_name as codelist_pk
+        from information_schema.table_constraints tco
+        join information_schema.key_column_usage kcu
+        on kcu.constraint_name = tco.constraint_name
+        and kcu.constraint_schema = tco.constraint_schema
+        and kcu.constraint_name = tco.constraint_name
+        where tco.constraint_type = 'PRIMARY KEY'
+        AND kcu.table_name IN (SELECT codelist_table FROM xxx)
+        AND kcu.table_name NOT IN ('cl_analysis', 'cl_landing', 'cl_micro_maturity', 'cl_reference_material', 'cl_project')
+    )
+    INSERT INTO ttt
+    SELECT xxx.*, zzz.codelist_pk FROM xxx join zzz on xxx.codelist_table = zzz.table_name;
+
+    FOR ttt_record IN SELECT * FROM ttt LOOP
+        EXECUTE
+        format('INSERT INTO import_log.log_values_without_codelist_entry SELECT DISTINCT $1, $2, $3, $4, %I::text
+               FROM import.%I WHERE %I::text NOT IN (SELECT %I::text FROM codelists.%I)'
+             , ttt_record.fk_column, ttt_record.main_table, ttt_record.fk_column, ttt_record.pk_column, ttt_record.codelist_table)
+        USING ttt_record.main_table, ttt_record.fk_column, ttt_record.codelist_table, ttt_record.pk_column;
+    END LOOP;
+END
+$func$ LANGUAGE plpgsql;
+
+SET SEARCH_PATH TO import, public;
+
+CREATE OR REPLACE FUNCTION populate_organism_measures () RETURNS VOID AS
+$func$
+DECLARE
+    measure_curs CURSOR FOR SELECT measure_name FROM metadata.md_organism_measure_detail;
+BEGIN
+    FOR recordvar IN measure_curs LOOP
+        EXECUTE
+        format('INSERT INTO core.co_organism_measure SELECT organism_identifier, $1, %I::decimal, NULL
+               FROM import.co_data_sampling_organism', recordvar.measure_name)
+        USING recordvar.measure_name;
+    END LOOP;
+END
+$func$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION populate_analysis_measures() RETURNS VOID AS
+$func$
+DECLARE
+    tracer_rec RECORD;
+    test_count INT;
+    tablename_curs CURSOR FOR SELECT tablename FROM pg_tables WHERE schemaname = 'import' AND tablename LIKE 'an_%';
+BEGIN
+    FOR table_rec IN tablename_curs LOOP
+        FOR tracer_rec IN EXECUTE format ('SELECT id, lower(tracer_name) AS tracer_name' ||
+                                          ' FROM metadata.md_analysis_tracer_detail WHERE (upper(data_type) = ' || quote_literal('DEC') || ' OR (upper(data_type) = ' || quote_literal('INTEGER') || ' AND ref_table IS NULL)) AND replace($1,' || quote_literal('_') ||  ',' || quote_literal('') || ') LIKE ' || quote_literal('%%') || ' || replace(analysis_type,' || quote_literal('_') ||  ',' || quote_literal('') || ')') USING table_rec.tablename
+        LOOP
+            EXECUTE format('SELECT count(*) FROM information_schema.columns' ||
+                           ' WHERE table_schema = ' || quote_literal('import') ||
+                           ' AND table_name = $1 AND column_name = $2') INTO test_count USING table_rec.tablename, tracer_rec.tracer_name;
+            IF test_count = 0 THEN
+                CONTINUE;
+            END IF;
+            EXECUTE
+            format('INSERT INTO analysis.an_analysis_measure SELECT talend_an_id, $1, %I::decimal, NULL
+                   FROM import.%I WHERE talend_an_id IN (SELECT id FROM analysis.an_analysis)'
+                 , tracer_rec.tracer_name, table_rec.tablename)
+            USING tracer_rec.id;
+        END LOOP;
+    END LOOP;
+END
+$func$ LANGUAGE plpgsql;
 
 COMMIT;
