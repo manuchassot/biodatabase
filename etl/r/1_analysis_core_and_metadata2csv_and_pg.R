@@ -51,7 +51,7 @@ processData <- function(dbConn, dataDir, tableName, csvFileName, xlsFileName, sh
     subDir <- "/csv/metadata/"
   }
   if (!dir.exists(file.path(dataDir, subDir))) {
-    dir.create(file.path(dataDir, subDir),recursive=TRUE)
+    dir.create(file.path(dataDir, subDir), recursive = TRUE)
   }
   df2csv(dataDir, subDir, csvFileName, df)
   df2pg(dbConn, tableName, df)

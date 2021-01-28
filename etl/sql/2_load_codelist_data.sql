@@ -47,4 +47,4 @@
 \COPY codelists.cl_tissue FROM 'cl_tissue.csv' WITH DELIMITER E'\t' CSV HEADER;
 \COPY codelists.cl_vessel FROM 'cl_vessel.csv' WITH DELIMITER E'\t' CSV HEADER;
 \COPY codelists.cl_vessel_storage FROM 'cl_vessel_storage.csv' WITH DELIMITER E'\t' CSV HEADER;
-\COPY codelists.cl_well_position FROM 'cl_well_position.csv' WITH DELIMITER E'\t' CSV HEADER;
+\COPY codelists.cl_vessel_well FROM 'cl_vessel_well.csv' WITH DELIMITER E'\t' CSV HEADER;
