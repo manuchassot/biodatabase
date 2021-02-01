@@ -3,7 +3,7 @@ SET SEARCH_PATH TO core, metadata, codelists, analysis, import_log, public;
 DELETE FROM log_duplicate_analysis_ids;
 DELETE FROM log_invalid_data;
 DELETE FROM log_values_without_codelist_entry;
-
+DELETE FROM log_analysis_values_without_codelist_entry;
 
 DELETE FROM an_analysis_measure;
 DELETE FROM an_moisture;

@@ -832,6 +832,16 @@ CREATE TABLE log_values_without_codelist_entry
     missing_key_value VARCHAR(100)
 );
 
+CREATE TABLE IF NOT EXISTS log_analysis_values_without_codelist_entry
+(
+	table1 text,
+	fk1_column text,
+	table2 text,
+	fk2_column text,
+	missing_key_value1 text,
+	missing_key_value2 text
+);
+
 CREATE OR REPLACE FUNCTION log_invalid_data (entity_name text, schema_name text, tbl_name text) RETURNS VOID AS
 $func$
 BEGIN
@@ -902,6 +912,23 @@ BEGIN
              , ttt_record.fk_column, ttt_record.main_table, ttt_record.fk_column, ttt_record.pk_column, ttt_record.codelist_table)
         USING ttt_record.main_table, ttt_record.fk_column, ttt_record.codelist_table, ttt_record.pk_column;
     END LOOP;
+END
+$func$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION log_ref_material_values_without_codelist_entry(tbl_name text) RETURNS VOID AS
+$func$
+BEGIN
+    DROP TABLE IF EXISTS ref_mat;
+    EXECUTE format('CREATE TEMP TABLE ref_mat AS SELECT talend_an_id, trim(unnest(string_to_array(reference_material::text, '';''))) as mat FROM import.%I', tbl_name);
+    INSERT INTO log_values_without_codelist_entry SELECT DISTINCT tbl_name, 'reference_material', 'cl_reference_material', 'reference_material', mat FROM ref_mat WHERE mat NOT IN (SELECT reference_material FROM codelists.cl_reference_material);
+END
+$func$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION log_analysis_values_without_codelist_entry(tbl_name text) RETURNS VOID AS
+$func$
+BEGIN
+    EXECUTE format('INSERT INTO import_log.log_analysis_values_without_codelist_entry
+    SELECT DISTINCT $1 as table1, ''analysis'' AS fk1_column, ''co_data_prep'' as table2, ''analysis_group'' AS fk2_column, a.analysis AS missing_key_value1, b.analysis_group AS missing_key_value2 FROM import.%I a join import.co_data_prep b on a.subsample_identifier = b.subsample_identifier WHERE NOT EXISTS (SELECT FROM codelists.cl_analysis WHERE analysis = a.analysis AND analysis_group = b.analysis_group)', tbl_name) USING tbl_name;
 END
 $func$ LANGUAGE plpgsql;
 
