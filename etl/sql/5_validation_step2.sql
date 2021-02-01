@@ -34,34 +34,14 @@ CREATE TEMP TABLE projects AS
 SELECT trim(unnest(string_to_array(project, '/'))) AS project_id, organism_identifier FROM import.co_data_sampling_organism;
 INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'co_data_sampling_organism', 'project_id', 'cl_project', 'project', project_id FROM projects WHERE project_id NOT IN (SELECT project FROM cl_project);
 
--- an_analysis_reference_material
-DROP TABLE IF EXISTS ref_mat;
-CREATE TEMP TABLE ref_mat AS SELECT talend_an_id, trim(unnest(string_to_array(reference_material::text, ';'))) as mat FROM import.an_amino_acids;
-INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'an_amino_acids', 'reference_material', 'cl_reference_material', 'reference_material', mat FROM ref_mat WHERE mat NOT IN (SELECT reference_material FROM cl_reference_material);
-
-DROP TABLE IF EXISTS ref_mat;
-CREATE TEMP TABLE ref_mat AS SELECT talend_an_id, trim(unnest(string_to_array(reference_material::text, ';'))) as mat FROM import.an_contaminants_dioxin;
-INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'an_contaminants_dioxin', 'reference_material', 'cl_reference_material', 'reference_material', mat FROM ref_mat WHERE mat NOT IN (SELECT reference_material FROM cl_reference_material);
-
-DROP TABLE IF EXISTS ref_mat;
-CREATE TEMP TABLE ref_mat AS SELECT talend_an_id, trim(unnest(string_to_array(reference_material::text, ';'))) as mat FROM import.an_contaminants_hg;
-INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'an_contaminants_hg', 'reference_material', 'cl_reference_material', 'reference_material', mat FROM ref_mat WHERE mat NOT IN (SELECT reference_material FROM cl_reference_material);
-
-DROP TABLE IF EXISTS ref_mat;
-CREATE TEMP TABLE ref_mat AS SELECT talend_an_id, trim(unnest(string_to_array(reference_material::text, ';'))) as mat FROM import.an_contaminants_musk;
-INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'an_contaminants_musk', 'reference_material', 'cl_reference_material', 'reference_material', mat FROM ref_mat WHERE mat NOT IN (SELECT reference_material FROM cl_reference_material);
-
-DROP TABLE IF EXISTS ref_mat;
-CREATE TEMP TABLE ref_mat AS SELECT talend_an_id, trim(unnest(string_to_array(reference_material::text, ';'))) as mat FROM import.an_contaminants_pcb;
-INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'an_contaminants_pcb', 'reference_material', 'cl_reference_material', 'reference_material', mat FROM ref_mat WHERE mat NOT IN (SELECT reference_material FROM cl_reference_material);
-
-DROP TABLE IF EXISTS ref_mat;
-CREATE TEMP TABLE ref_mat AS SELECT talend_an_id, trim(unnest(string_to_array(reference_material::text, ';'))) as mat FROM import.an_contaminants_pfc;
-INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'an_contaminants_pfc', 'reference_material', 'cl_reference_material', 'reference_material', mat FROM ref_mat WHERE mat NOT IN (SELECT reference_material FROM cl_reference_material);
-
-DROP TABLE IF EXISTS ref_mat;
-CREATE TEMP TABLE ref_mat AS SELECT talend_an_id, trim(unnest(string_to_array(reference_material::text, ';'))) as mat FROM import.an_contaminants_tm;
-INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'an_contaminants_tm', 'reference_material', 'cl_reference_material', 'reference_material', mat FROM ref_mat WHERE mat NOT IN (SELECT reference_material FROM cl_reference_material);
+-- Missing_reference_material
+SELECT log_ref_material_values_without_codelist_entry('an_amino_acids');
+SELECT log_ref_material_values_without_codelist_entry('an_contaminants_dioxin');
+SELECT log_ref_material_values_without_codelist_entry('an_contaminants_hg');
+SELECT log_ref_material_values_without_codelist_entry('an_contaminants_musk');
+SELECT log_ref_material_values_without_codelist_entry('an_contaminants_pcb');
+SELECT log_ref_material_values_without_codelist_entry('an_contaminants_pfc');
+SELECT log_ref_material_values_without_codelist_entry('an_contaminants_tm');
 
 SELECT log_values_without_codelist_entry('environment', 'import', 'co_data_sampling_environment');
 SELECT log_values_without_codelist_entry('organism', 'import', 'co_data_sampling_organism');
@@ -85,5 +65,26 @@ SELECT log_values_without_codelist_entry('fatmeter', 'import', 'an_fatmeter');
 SELECT log_values_without_codelist_entry('fecundity', 'import', 'an_repro_fecundity');
 SELECT log_values_without_codelist_entry('proteins', 'import', 'an_proteins');
 SELECT log_values_without_codelist_entry('maturity', 'import', 'an_repro_maturity');
+
+-- Missing analysis values
+SELECT log_analysis_values_without_codelist_entry('an_amino_acids');
+SELECT log_analysis_values_without_codelist_entry('an_contaminants_dioxin');
+SELECT log_analysis_values_without_codelist_entry('an_contaminants_hg');
+SELECT log_analysis_values_without_codelist_entry('an_contaminants_musk');
+SELECT log_analysis_values_without_codelist_entry('an_contaminants_pcb');
+SELECT log_analysis_values_without_codelist_entry('an_contaminants_pfc');
+SELECT log_analysis_values_without_codelist_entry('an_contaminants_tm');
+SELECT log_analysis_values_without_codelist_entry('an_fatmeter');
+SELECT log_analysis_values_without_codelist_entry('an_fatty_acids');
+SELECT log_analysis_values_without_codelist_entry('an_lipid_classes');
+SELECT log_analysis_values_without_codelist_entry('an_moisture');
+SELECT log_analysis_values_without_codelist_entry('an_otolith_increment_counts');
+SELECT log_analysis_values_without_codelist_entry('an_otolith_morphometrics');
+SELECT log_analysis_values_without_codelist_entry('an_proteins');
+SELECT log_analysis_values_without_codelist_entry('an_repro_fecundity');
+SELECT log_analysis_values_without_codelist_entry('an_repro_maturity');
+SELECT log_analysis_values_without_codelist_entry('an_stable_isotopes');
+SELECT log_analysis_values_without_codelist_entry('an_total_lipids');
+SELECT log_analysis_values_without_codelist_entry('an_stomach_content_category');
 
 COMMIT;
