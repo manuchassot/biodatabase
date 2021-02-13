@@ -31,8 +31,13 @@ CREATE TABLE log_missing_micro_maturity_combinations AS SELECT talend_an_id, mic
 
 DROP TABLE IF EXISTS projects;
 CREATE TEMP TABLE projects AS
-SELECT trim(unnest(string_to_array(project, '/'))) AS project_id, organism_identifier FROM import.co_data_sampling_organism;
+SELECT trim(unnest(string_to_array(project, '/'))) AS project_id FROM import.co_data_sampling_organism;
 INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'co_data_sampling_organism', 'project_id', 'cl_project', 'project', project_id FROM projects WHERE project_id NOT IN (SELECT project FROM cl_project);
+
+DROP TABLE IF EXISTS wells;
+CREATE TEMP TABLE wells AS
+SELECT trim(unnest(string_to_array(well_position, ';'))) AS well_position FROM import.co_data_sampling_environment;
+INSERT INTO log_values_without_codelist_entry SELECT DISTINCT 'co_data_sampling_environment', 'well_position', 'cl_vessel_well', 'well_position', well_position FROM wells WHERE well_position NOT IN (SELECT well_position FROM cl_vessel_well);
 
 -- Missing_reference_material
 SELECT log_ref_material_values_without_codelist_entry('an_amino_acids');
