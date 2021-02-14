@@ -501,8 +501,6 @@ CREATE TABLE co_sampling_environment
     capture_time_end timetz,
     activity_number INT,
     sea_surface_temperature_deg_celcius FLOAT,
-    well_position VARCHAR(15) REFERENCES cl_vessel_well ON UPDATE CASCADE ON DELETE RESTRICT,
-    well_number VARCHAR(255),
     ocean_code VARCHAR(10) REFERENCES cl_ocean ON UPDATE CASCADE ON DELETE RESTRICT,
     gear_code VARCHAR(50) REFERENCES cl_gear ON UPDATE CASCADE ON DELETE RESTRICT,
     vessel_code varchar(50), -- REFERENCES cl_vessel ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -522,6 +520,14 @@ CREATE TABLE co_sampling_environment
     longitude_deg_dec_max decimal,
     turbidity decimal,
     ph decimal
+);
+
+CREATE TABLE co_well_sampling_environment
+(
+    well_number VARCHAR(50),
+    well_position VARCHAR(15) REFERENCES cl_vessel_well ON UPDATE CASCADE ON DELETE RESTRICT,
+    sampling_environment VARCHAR(20) REFERENCES co_sampling_environment ON UPDATE CASCADE ON DELETE RESTRICT,
+    PRIMARY KEY(well_number, well_position, sampling_environment)
 );
 
 CREATE TABLE co_sampling_organism

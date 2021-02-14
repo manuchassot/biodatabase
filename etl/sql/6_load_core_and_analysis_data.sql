@@ -7,9 +7,22 @@ SET SEARCH_PATH TO metadata, core, codelists, analysis, import_log, public;
 --------------
 -- co_sampling_environment
 ALTER TABLE co_sampling_environment DROP COLUMN IF EXISTS organism_ids;
+ALTER TABLE co_sampling_environment DROP COLUMN IF EXISTS well_number;
+ALTER TABLE co_sampling_environment DROP COLUMN IF EXISTS well_position;
 ALTER TABLE co_sampling_environment ADD COLUMN organism_ids text[];
+ALTER TABLE co_sampling_environment ADD COLUMN well_number text;
+ALTER TABLE co_sampling_environment ADD COLUMN well_position text;
 INSERT INTO co_sampling_environment(id, landing_date, landing_site, landing_country, capture_date, capture_date_min, capture_date_max, capture_time, capture_time_start, capture_time_end, activity_number, sea_surface_temperature_deg_celcius, well_position, well_number, ocean_code, gear_code, vessel_code, vessel_name, vessel_storage_mode, sampling_remarks, capture_depth_m, aggregation, description_aggregation, latitude_deg_dec, latitude_deg_dec_min, latitude_deg_dec_max, longitude_deg_dec, longitude_deg_dec_min, longitude_deg_dec_max, organism_ids, geom, turbidity, ph)
  SELECT ocean_code || lpad((row_number() over ())::text, 8, '0'), landing_date, a.landing_site, b.landing_country, capture_date, capture_date_min, capture_date_max, time '00:00' + make_interval(secs => capture_time::decimal*86400), time '00:00' + make_interval(secs => capture_time_start::decimal*86400), time '00:00' + make_interval(secs => capture_time_end::decimal*86400), activity_number::int, sea_surface_temp, well_position, well_number, ocean_code, gear_code, vessel_code, vessel_name, vessel_storage_mode, remarks_capture, capture_depth, aggregation, description_aggregation, latitude_deg_dec, latitude_deg_dec_min, latitude_deg_dec_max, longitude_deg_dec, longitude_deg_dec_min, longitude_deg_dec_max, array_agg(organism_identifier), CASE WHEN latitude_deg_dec IS NOT NULL AND longitude_deg_dec IS NOT NULL THEN ST_SetSRID(ST_MakePoint(longitude_deg_dec, latitude_deg_dec), 4326) WHEN latitude_deg_dec_min IS NOT NULL AND longitude_deg_dec_min IS NOT NULL AND latitude_deg_dec_max IS NOT NULL AND longitude_deg_dec_max IS NOT NULL THEN ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[ST_MakePoint(longitude_deg_dec_min, latitude_deg_dec_min), ST_MakePoint(longitude_deg_dec_min, latitude_deg_dec_max), ST_MakePoint(longitude_deg_dec_max, latitude_deg_dec_max), ST_MakePoint(longitude_deg_dec_max, latitude_deg_dec_min), ST_MakePoint(longitude_deg_dec_min, latitude_deg_dec_min)])), 4326) END, turbidity, ph FROM import.co_data_sampling_environment a LEFT JOIN codelists.cl_landing b ON a.landing_site = b.landing_site GROUP BY ocean_code, a.landing_site, b.landing_country, capture_date, capture_date_min, capture_date_max, capture_time, capture_time_start, capture_time_end, activity_number, sea_surface_temp, well_position, well_number, landing_date, gear_code, vessel_code, vessel_name, vessel_storage_mode, remarks_capture, capture_depth, aggregation, description_aggregation, latitude_deg_dec, latitude_deg_dec_min, latitude_deg_dec_max, longitude_deg_dec, longitude_deg_dec_min, longitude_deg_dec_max, turbidity, ph ORDER BY ocean_code;
+
+-- co_well_sampling_environment
+WITH wells AS
+(
+    SELECT trim(unnest(string_to_array(well_number, ';'))) AS well_number, trim(unnest(string_to_array(well_position, ';'))) AS well_position, id
+    FROM co_sampling_environment
+)
+INSERT INTO co_well_sampling_environment (well_number, well_position, sampling_environment)
+SELECT well_number, well_position, id FROM wells;
 
 -- co_sampling_organism
 INSERT INTO co_sampling_organism(id, sampling_platform, sampling_status, sampling_date, sampling_remarks, first_tag_number, second_tag_number, species_code_fao, stomach_prey_groups, organism_length_unit, organism_weight_unit, tissue_weight_unit, macro_maturity_stage, sex, otolith_count, otolith_breaking, shell_length, shell_height)
@@ -34,6 +47,8 @@ INSERT INTO co_organism_captured(sampling_organism, sampling_environment)
 SELECT * FROM xxx ON CONFLICT (sampling_organism, sampling_environment) DO NOTHING;
 
 ALTER TABLE co_sampling_environment DROP COLUMN organism_ids;
+ALTER TABLE co_sampling_environment DROP COLUMN well_number;
+ALTER TABLE co_sampling_environment DROP COLUMN well_position;
 
 -- co_organism_measure
 SELECT import.populate_organism_measures();
