@@ -320,8 +320,8 @@ CREATE TABLE cl_storage_mode
 
 CREATE TABLE cl_tissue
 (
-	tissue_code varchar(50) PRIMARY KEY,
-	tissue_en varchar(255) UNIQUE,
+	tissue_code varchar(50) UNIQUE NOT NULL,
+	tissue_en varchar(255) PRIMARY KEY,
     tissue_fr varchar(255) UNIQUE
 );
 
@@ -569,7 +569,7 @@ CREATE TABLE co_organism_captured
 CREATE TABLE co_sample
 (
     id varchar(50) PRIMARY KEY,
-    tissue varchar(50) REFERENCES cl_tissue ON UPDATE CASCADE ON DELETE RESTRICT,
+    tissue varchar(255) REFERENCES cl_tissue ON UPDATE CASCADE ON DELETE RESTRICT,
     position varchar(50) REFERENCES cl_sample_position ON UPDATE CASCADE ON DELETE RESTRICT,
     sampling_organism varchar(50) REFERENCES co_sampling_organism ON UPDATE CASCADE ON DELETE RESTRICT
 );
@@ -906,7 +906,7 @@ BEGIN
         and kcu.constraint_name = tco.constraint_name
         where tco.constraint_type = 'PRIMARY KEY'
         AND kcu.table_name IN (SELECT codelist_table FROM xxx)
-        AND kcu.table_name NOT IN ('cl_analysis', 'cl_landing', 'cl_micro_maturity', 'cl_reference_material', 'cl_project')
+        AND kcu.table_name NOT IN ('cl_analysis', 'cl_landing', 'cl_micro_maturity', 'cl_reference_material', 'cl_project', 'cl_vessel_well')
     )
     INSERT INTO ttt
     SELECT xxx.*, zzz.codelist_pk FROM xxx join zzz on xxx.codelist_table = zzz.table_name;
