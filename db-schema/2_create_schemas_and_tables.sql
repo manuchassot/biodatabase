@@ -684,6 +684,7 @@ CREATE TABLE an_reproduction_maturity
     micro_maturity_stage varchar(50),
     mago_substage varchar(50),
     mago_stage varchar(50),
+    sample_state_before_process text,
     pof varchar(50) REFERENCES cl_pof ON UPDATE CASCADE ON DELETE RESTRICT,
     a_atresia boolean,
     b_atresia boolean,
