@@ -137,8 +137,8 @@ CREATE TABLE cl_analysis
 
 CREATE TABLE cl_atresia
 (
-	code_atretic_stage integer primary key,
-	atretic_stage_en VARCHAR(50) UNIQUE,
+	code_atretic_stage integer unique,
+	atretic_stage_en VARCHAR(50) primary key,
 	desc_atretic_stage_en text UNIQUE
 );
 
@@ -695,7 +695,7 @@ CREATE TABLE an_reproduction_maturity
     repro_subphase varchar(50),
     atretic_oocyte_stage varchar(50) REFERENCES cl_atretic_oocyte_stage ON UPDATE CASCADE ON DELETE RESTRICT,
     atretic_oocyte_percent varchar(10),
-    atretic_stage INT REFERENCES cl_atresia ON UPDATE CASCADE ON DELETE RESTRICT,
+    atretic_stage varchar(50) REFERENCES cl_atresia ON UPDATE CASCADE ON DELETE RESTRICT,
     FOREIGN KEY(micro_sex, micro_maturity_stage, mago_substage, mago_stage, repro_phase, repro_subphase)
     REFERENCES cl_micro_maturity(micro_sex, micro_maturity, mago_substage, mago_stage, repro_phase, repro_subphase)
     ON UPDATE CASCADE ON DELETE RESTRICT
