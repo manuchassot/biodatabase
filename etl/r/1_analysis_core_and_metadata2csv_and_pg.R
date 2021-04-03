@@ -1,12 +1,12 @@
 library(openxlsx)
-library(RPostgreSQL)
+library(RPostgres)
 library(argparse)
+library(readr)
 
 # DB connection
 createDbConn <- function(database, host, port, user, password) {
 
-  drv <- dbDriver("PostgreSQL")
-  con <- dbConnect(drv, dbname=database, host=host, port=port, user=user, password=password)
+  con <- dbConnect(RPostgres::Postgres(), dbname=database, host=host, port=port, user=user, password=password, sslmode='prefer')
   dbGetQuery(con, "SET SEARCH_PATH TO import, public")  
   return (con)
 }
@@ -23,7 +23,7 @@ xlsx2df <- function(dataDir, xlsFileName, sheetName = NULL) {
 
 df2csv <- function(dataDir, subDir, csvFileName, df) {
   
-  write.table(df, file=paste0(dataDir, subDir, csvFileName), sep="\t", row.names = FALSE, fileEncoding='utf8', na="", quote=FALSE)
+  write_delim(df, file=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
   return (invisible(NULL))
 }
 
