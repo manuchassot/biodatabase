@@ -1,6 +1,7 @@
 library(openxlsx)
 library(stringr)
 library(argparse)
+library(readr)
 
 xlsx2df <- function(dataDir, xlsFileName, sheetName = NULL) {
   
@@ -18,7 +19,7 @@ df2csv <- function(dataDir, csvFileName, df) {
   if (!dir.exists(file.path(dataDir, subDir))) {
     dir.create(file.path(dataDir, subDir))
   }
-  write.table(df, file=paste0(dataDir, subDir, csvFileName), sep="\t", row.names = FALSE, fileEncoding='utf8', na="", quote=FALSE)
+  write_delim(df, file=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
   return (invisible(NULL))
 }
 

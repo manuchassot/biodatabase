@@ -1,3 +1,5 @@
+BEGIN;
+
 SET SEARCH_PATH TO core, metadata, codelists, analysis, import_log, public;
 
 DELETE FROM log_duplicate_analysis_ids;
@@ -33,6 +35,7 @@ DELETE FROM co_sample;
 DELETE FROM co_organism_captured;
 DELETE FROM co_project_sampling_organism;
 DELETE FROM co_sampling_organism;
+DELETE FROM co_well_sampling_environment;
 DELETE FROM co_sampling_environment;
 
 DELETE FROM md_ddd;
@@ -89,3 +92,5 @@ DELETE FROM cl_tissue;
 DELETE FROM cl_vessel;
 DELETE FROM cl_vessel_storage;
 DELETE FROM cl_vessel_well;
+
+COMMIT;
