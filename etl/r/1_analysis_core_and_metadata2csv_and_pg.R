@@ -23,7 +23,8 @@ xlsx2df <- function(dataDir, xlsFileName, sheetName = NULL) {
 
 df2csv <- function(dataDir, subDir, csvFileName, df) {
   
-  write_delim(df, file=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
+  #write_delim(df, file=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
+  write_delim(df, path=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
   return (invisible(NULL))
 }
 
