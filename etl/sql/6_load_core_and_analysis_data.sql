@@ -1,5 +1,6 @@
 BEGIN;
 
+SET CLIENT_ENCODING TO 'UTF8';
 SET SEARCH_PATH TO metadata, core, codelists, analysis, import_log, public;
 
 --------------

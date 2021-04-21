@@ -1,6 +1,6 @@
 ### Introduction
 
-With the scripts provided, data can be extracted from MS Excel files and loaded into PostgreSQL. All scripts are either R scripts or SQL scripts. The R scripts are primarily used to convert data from MS Excel format to CSV format (with little or no transformation applied), and to load *analysis*, core and *metadata* directly into staging tables (database schema *import*). The SQL scripts are used to populate the codelist tables (schema *codelists*), and to transform data and load them into the final tables in schemas *core*, *analysis* and *metadata*. Errors and data inconsistencies are logged to eight tables in schema *import\_log*. To avoid encoding issues on Windows set the environment variable *PGCLIENTENCODING* to *UTF8* before running the scripts.
+With the scripts provided, data can be extracted from MS Excel files and loaded into PostgreSQL. All scripts are either R scripts or SQL scripts. The R scripts are primarily used to convert data from MS Excel format to CSV format (with little or no transformation applied), and to load *analysis*, core and *metadata* directly into staging tables (database schema *import*). The SQL scripts are used to populate the codelist tables (schema *codelists*), and to transform data and load them into the final tables in schemas *core*, *analysis* and *metadata*. Errors and data inconsistencies are logged to eight tables in schema *import\_log*.
 
 ### Usage
 
