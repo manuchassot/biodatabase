@@ -1,5 +1,6 @@
 BEGIN;
 
+SET CLIENT_ENCODING TO 'UTF8';
 SET SEARCH_PATH TO metadata, public;
 
 -- md_ddd

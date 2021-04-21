@@ -1,5 +1,6 @@
 BEGIN;
 
+SET CLIENT_ENCODING TO 'UTF8';
 SET SEARCH_PATH TO import_log, codelists, public;
 
 DROP TABLE IF EXISTS log_non_distinct_sample_entries;

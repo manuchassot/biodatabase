@@ -952,6 +952,7 @@ BEGIN
                FROM import.co_data_sampling_organism', recordvar.measure_name)
         USING recordvar.measure_name;
     END LOOP;
+    DELETE FROM core.co_organism_measure WHERE measure_value IS NULL;
 END
 $func$ LANGUAGE plpgsql;
 

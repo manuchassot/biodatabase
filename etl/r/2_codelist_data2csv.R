@@ -20,7 +20,7 @@ df2csv <- function(dataDir, csvFileName, df) {
     dir.create(file.path(dataDir, subDir))
   }
 #  write_delim(df, file=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
-  write_delim(df, path=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
+  write_delim(df, file=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
     return (invisible(NULL))
 }
 

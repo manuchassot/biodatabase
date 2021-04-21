@@ -1,3 +1,5 @@
+SET CLIENT_ENCODING TO 'UTF8';
+
 \COPY codelists.cl_aggregation FROM 'cl_aggregation.csv' WITH DELIMITER E'\t' CSV HEADER;
 \COPY codelists.cl_amino_acid FROM 'cl_amino_acid.csv' WITH DELIMITER E'\t' CSV HEADER;
 \COPY codelists.cl_analysis FROM 'cl_analysis.csv' WITH DELIMITER E'\t' CSV HEADER;

@@ -1,5 +1,6 @@
 BEGIN;
 
+SET CLIENT_ENCODING TO 'UTF8';
 SET SEARCH_PATH TO import_log, metadata, public;
 
 DROP TABLE IF EXISTS log_duplicate_metadata;
