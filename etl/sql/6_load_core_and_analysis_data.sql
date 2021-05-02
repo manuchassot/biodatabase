@@ -1,7 +1,7 @@
 BEGIN;
 
 SET CLIENT_ENCODING TO 'UTF8';
-SET SEARCH_PATH TO metadata, core, codelists, analysis, import_log, public;
+SET SEARCH_PATH TO metadata, core, codelists, analysis, spatial, import_log, public;
 
 --------------
 -- SCHEMA core
@@ -208,5 +208,32 @@ DROP TABLE ref_mat;
 
 -- an_analysis_measure
 SELECT import.populate_analysis_measures();
+
+
+-- Derive geometry for sampling environment entries without explicitly provided coordinates:
+-- Exclusive Economic Zone of Ivory Coast
+UPDATE co_sampling_environment
+SET (geom, geom_uncertainty_sqkm) = (SELECT geom, ROUND((ST_Area(geom::geography)/1e6)::numeric, 1) FROM st_eez WHERE iso_ter1 LIKE 'CIV')
+WHERE geom IS NULL AND sampling_remarks ILIKE '%Ivory Coast EEZ%';
+
+-- Mahé Plateau of Seychelles
+UPDATE co_sampling_environment
+SET (geom, geom_uncertainty_sqkm) = (SELECT geom, ROUND((ST_Area(geom::geography)/1e6)::numeric, 1) FROM st_mahe_plateau)
+WHERE geom IS NULL AND sampling_remarks ILIKE '%Mahe Plateau%';
+
+-- EEZ of Seychelles
+UPDATE co_sampling_environment
+SET (geom, geom_uncertainty_sqkm) = (SELECT geom, ROUND((ST_Area(geom::geography)/1e6)::numeric, 1) FROM st_eez WHERE iso_ter1 LIKE 'SYC')
+WHERE geom IS NULL AND sampling_remarks ILIKE '%SYC EEZ%';
+
+-- Indian Ocean basin (indicated with WKT_IO in the remarks)
+UPDATE co_sampling_environment
+SET (geom, geom_uncertainty_sqkm) = (SELECT geom, ST_area(geom::geography)/1000000 FROM st_rfmos WHERE gid = 4)
+WHERE (geom IS NULL AND sampling_remarks LIKE '%WKT_IO%');
+
+-- Atlantic Ocean basin (indicated with WKT_AO in the remarks)
+UPDATE co_sampling_environment
+SET (geom, geom_uncertainty_sqkm) = (SELECT geom, ST_area(geom::geography)/1000000 FROM st_rfmos WHERE gid = 3)
+WHERE (geom IS NULL AND sampling_remarks LIKE '%WKT_AO%');
 
 COMMIT;
