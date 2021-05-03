@@ -511,7 +511,7 @@ CREATE TABLE co_sampling_environment
     aggregation varchar(50) REFERENCES cl_aggregation ON UPDATE CASCADE ON DELETE RESTRICT,
     description_aggregation TEXT,
     geom geometry(Geometry, 4326),
-    geom_uncertainty_km INT,
+    geom_uncertainty_sqkm DECIMAL,
     latitude_deg_dec decimal,
     latitude_deg_dec_min decimal,
     latitude_deg_dec_max decimal,
