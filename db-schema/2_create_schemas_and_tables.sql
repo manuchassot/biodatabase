@@ -500,7 +500,7 @@ CREATE TABLE co_sampling_environment
     capture_time_start timetz,
     capture_time_end timetz,
     activity_number INT,
-    sea_surface_temperature_deg_celcius FLOAT,
+    sea_surface_temperature_deg_celsius FLOAT,
     ocean_code VARCHAR(10) REFERENCES cl_ocean ON UPDATE CASCADE ON DELETE RESTRICT,
     gear_code VARCHAR(50) REFERENCES cl_gear ON UPDATE CASCADE ON DELETE RESTRICT,
     vessel_code varchar(50), -- REFERENCES cl_vessel ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -948,8 +948,9 @@ DECLARE
 BEGIN
     FOR recordvar IN measure_curs LOOP
         EXECUTE
-        format('INSERT INTO core.co_organism_measure SELECT organism_identifier, $1, %I::decimal, NULL
-               FROM import.co_data_sampling_organism', recordvar.measure_name)
+        format('INSERT INTO core.co_organism_measure SELECT organism_identifier, $1, %I::decimal, CASE WHEN $1 LIKE '
+                   || quote_literal('%%_length') || ' THEN organism_length_unit WHEN $1 LIKE ' || quote_literal('%%_weight') ||
+               ' THEN organism_weight_unit END FROM import.co_data_sampling_organism', recordvar.measure_name)
         USING recordvar.measure_name;
     END LOOP;
     DELETE FROM core.co_organism_measure WHERE measure_value IS NULL;
