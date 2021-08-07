@@ -1,7 +1,16 @@
-library(openxlsx)
-library(stringr)
-library(argparse)
-library(readr)
+packages <- c("openxlsx", "stringr",
+              "argparse", "readr")
+
+## Now load or install&load all
+package.check <- lapply(
+  packages,
+  FUN = function(x) {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE, repos = "http://cran.us.r-project.org")
+      library(x, character.only = TRUE)
+    }
+  }
+)
 
 xlsx2df <- function(dataDir, xlsFileName, sheetName = NULL) {
   
@@ -19,7 +28,6 @@ df2csv <- function(dataDir, csvFileName, df) {
   if (!dir.exists(file.path(dataDir, subDir))) {
     dir.create(file.path(dataDir, subDir))
   }
-#  write_delim(df, file=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
   write_delim(df, file=paste0(dataDir, subDir, csvFileName), delim="\t", na="")
     return (invisible(NULL))
 }
